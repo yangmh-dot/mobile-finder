@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
+  <link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3b82f6">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mobile Finder 2.0 – AI 影片與圖片搜尋器</title>
@@ -68,5 +70,13 @@ if(mode==='seo'){return`🧭 *Search-Friendly Title / 旅遊SEO標題*\nEN: Disc
 if(mode==='clickbait'){return`😂 *Clickbait Title / 吸睛短影音標題*\nEN: You Won’t Believe What Happened in ${q}! 😱\nZH: ${q} 發生的事你絕對想不到！😱\n\nDescription 描述:\nEN: Funny, surprising, and heartwarming clips filmed around ${q}. Perfect for YouTube Shorts.\nZH: 充滿驚喜與趣味的${q} 短影音集錦，適合YouTube Shorts！\n\nHashtags:\n#${q.replace(/ /g,'#')} #funny #shorts #viral`;}}
 textOutput.textContent=makeText('cinematic');output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));});
 </script>
+  <script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(() => console.log("✅ Service Worker registered"))
+    .catch((err) => console.error("SW failed:", err));
+}
+</script>
+
 </body>
 </html>
