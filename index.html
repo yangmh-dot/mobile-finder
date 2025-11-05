@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#3b82f6">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mobile Finder 2.0 – AI 影片與圖片搜尋器</title>
+  <title>AI 影片搜尋器</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#3b82f6">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { background-color: #f9fafc; color: #1f2937; font-family: 'Inter', sans-serif; }
@@ -14,11 +14,13 @@
     .btn { background: #3b82f6; color: white; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 500; }
     .btn:hover { background: #2563eb; }
     select, input { border: 1px solid #93c5fd; border-radius: 0.5rem; padding: 0.4rem 0.6rem; }
+    #results img { border-radius: 0.5rem; transition: transform 0.2s; }
+    #results img:hover { transform: scale(1.05); }
   </style>
 </head>
 <body>
 <header class="px-4 py-3 flex justify-between items-center">
-  <div class="text-lg font-semibold text-blue-700">📸 Mobile Finder 2.0</div>
+  <div class="text-lg font-semibold text-blue-700">📸 AI 影片搜尋器</div>
   <button id="btnSettings" class="text-blue-600 font-medium">⚙️ Settings</button>
 </header>
 
@@ -28,9 +30,7 @@
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
       <div><label class="text-sm">Country 國家</label><select id="country" class="w-full"></select></div>
       <div><label class="text-sm">City 城市</label><select id="city" class="w-full"></select></div>
-      <div><label class="text-sm">Place 地點</label><select id="place" class="w-full"><option>Any</option><option>Landmark</option><option>Beach</option><option>Park</option><option>Market</option><option>Temple</option><option>Café</option><option>Street</option></select></div>
       <div><label class="text-sm">Theme 主題</label><select id="theme" class="w-full"></select></div>
-      <div><label class="text-sm">Aspect 比例</label><select id="aspect" class="w-full"><option value="any">Any</option><option value="vertical">Vertical 9:16</option><option value="horizontal">Horizontal 16:9</option><option value="square">Square</option></select></div>
       <div><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cats"></div>
     </div>
     <div class="mt-3 flex gap-2">
@@ -41,8 +41,10 @@
   </section>
 
   <section id="results" class="grid grid-cols-2 md:grid-cols-3 gap-3"></section>
+  <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
+
   <div id="output" class="card p-4 rounded-xl hidden">
-    <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description Generator</h3>
+    <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description</h3>
     <div class="flex gap-2 mb-2">
       <button class="btn bg-blue-500" data-mode="cinematic">Cinematic</button>
       <button class="btn bg-purple-500" data-mode="seo">SEO</button>
@@ -52,31 +54,70 @@
   </div>
 </main>
 
+<!-- Settings modal -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center">
+  <div class="bg-white p-5 rounded-xl w-80">
+    <h3 class="text-blue-700 font-semibold mb-2">⚙️ API 設定</h3>
+    <p class="text-sm mb-2">輸入你的 Pexels API Key（選填）：</p>
+    <input id="pexelsKey" type="text" placeholder="Pexels API Key" class="w-full border p-2 mb-3 rounded">
+    <div class="flex justify-end gap-2">
+      <button id="btnSaveKey" class="btn">Save</button>
+      <button id="btnCloseSettings" class="btn bg-gray-300 text-gray-700">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const countrySel=document.getElementById('country');const citySel=document.getElementById('city');const placeSel=document.getElementById('place');const themeSel=document.getElementById('theme');const keywordsInput=document.getElementById('keywords');
-const resultsEl=document.getElementById('results');const btnGenerate=document.getElementById('btnGenerate');const output=document.getElementById('output');const textOutput=document.getElementById('textOutput');
+const DATA={"Any":["Any"],"United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Boston"],"Japan":["Any","Tokyo","Kyoto","Osaka","Sapporo","Okinawa"],"Taiwan":["Any","Taipei","Taichung","Tainan","Kaohsiung"]};
+const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Countryside","Mountains","Sports"];
+const country=document.getElementById("country"),city=document.getElementById("city"),theme=document.getElementById("theme");
+for(const c in DATA){let o=document.createElement("option");o.textContent=c;country.appendChild(o);}
+for(const t of THEMES){let o=document.createElement("option");o.textContent=t;theme.appendChild(o);}
+country.addEventListener("change",()=>{city.innerHTML='';(DATA[country.value]||["Any"]).forEach(x=>{let o=document.createElement("option");o.textContent=x;city.appendChild(o);});});
+country.dispatchEvent(new Event("change"));
+const btnSearch=document.getElementById("btnSearch"),btnClear=document.getElementById("btnClear"),results=document.getElementById("results"),loading=document.getElementById("loading");
+btnSearch.addEventListener("click",async()=>{
+  results.innerHTML='';loading.classList.remove("hidden");
+  const q=[country.value,city.value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
+  const key=localStorage.getItem("pexelsKey");
+  try{
+    let data;
+    if(key){
+      const res=await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=9`,{headers:{Authorization:key}});
+      const j=await res.json();data=j.photos.map(p=>p.src.medium);
+    }else{
+      const res=await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=9&prop=imageinfo&iiprop=url`);
+      const j=await res.json();data=Object.values(j.query?.pages||{}).map(p=>p.imageinfo?.[0]?.url).filter(Boolean);
+    }
+    results.innerHTML=data.map(u=>`<a href='${u}' target='_blank'><img src='${u}' class='w-full'></a>`).join('');
+  }catch(e){results.innerHTML='<p class=\"text-red-500\">❌ 搜尋失敗，請稍後再試</p>';}
+  loading.classList.add("hidden");
+});
+btnClear.addEventListener("click",()=>{results.innerHTML='';document.getElementById("keywords").value='';});
 
-const DATA={"Any":["Any"],"United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver","Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans","Detroit","Minneapolis","Salt Lake City","Nashville","San Antonio","Tampa","Baltimore","Sacramento","Kansas City"],"Canada":["Any","Toronto","Vancouver","Montreal","Ottawa","Calgary","Edmonton","Quebec City","Halifax","Winnipeg","Victoria"],"Mexico":["Any","Mexico City","Guadalajara","Monterrey","Tijuana","Puebla","Cancún","Mérida","Oaxaca","Cabo San Lucas"],"Japan":["Any","Tokyo","Kyoto","Osaka","Sapporo","Fukuoka","Nagoya","Nara","Yokohama","Kobe","Hiroshima","Okinawa"],"Taiwan":["Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"],"South Korea":["Any","Seoul","Busan","Incheon","Daegu","Jeju","Gwangju","Daejeon","Suwon"],"Thailand":["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin"],"France":["Any","Paris","Nice","Lyon","Marseille","Bordeaux","Toulouse","Strasbourg","Cannes"],"United Kingdom":["Any","London","Edinburgh","Manchester","Liverpool","Bristol","Birmingham","Glasgow","Oxford","Cambridge"],"Italy":["Any","Rome","Milan","Venice","Florence","Naples","Turin","Bologna","Pisa","Verona"],"Indonesia":["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok"]};
-const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Countryside","Mountains","Festivals","Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"];
-for(const c of Object.keys(DATA)){let o=document.createElement('option');o.textContent=c;countrySel.appendChild(o);}for(const t of THEMES){let o=document.createElement('option');o.textContent=t;themeSel.appendChild(o);}
-function populateCities(){citySel.innerHTML='';(DATA[countrySel.value]||['Any']).forEach(x=>{let o=document.createElement('option');o.textContent=x;citySel.appendChild(o);});}
-countrySel.addEventListener('change',populateCities);populateCities();
+const output=document.getElementById("output"),btnGenerate=document.getElementById("btnGenerate"),textOutput=document.getElementById("textOutput");
+btnGenerate.addEventListener("click",()=>{
+  output.classList.remove("hidden");
+  const q=[country.value,city.value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
+  function makeText(mode){
+    if(mode==='cinematic')return`🎬 *Cinematic Title*\\nEN: Journey Through ${q}\\nZH: ${q} 的電影感畫面`;
+    if(mode==='seo')return`🧭 *SEO Title*\\nEN: Discover ${q} in 4K – Travel Highlights\\nZH: 探索${q}的旅遊亮點`;
+    if(mode==='clickbait')return`😂 *Clickbait Title*\\nEN: You Won’t Believe What Happened in ${q}!\\nZH: ${q} 發生的事你絕對想不到！`;
+  }
+  textOutput.textContent=makeText('cinematic');
+  output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));
+});
 
-function buildQuery(){let parts=[];if(countrySel.value!=='Any')parts.push(countrySel.value);if(citySel.value!=='Any')parts.push(citySel.value);if(placeSel.value!=='Any')parts.push(placeSel.value);if(themeSel.value!=='Any')parts.push(themeSel.value);if(keywordsInput.value.trim())parts.push(keywordsInput.value.trim());return parts.join(' ');}
+// Settings modal
+const modal=document.getElementById("settingsModal"),btnSettings=document.getElementById("btnSettings"),btnClose=document.getElementById("btnCloseSettings"),btnSave=document.getElementById("btnSaveKey");
+btnSettings.onclick=()=>{document.getElementById("pexelsKey").value=localStorage.getItem("pexelsKey")||'';modal.classList.remove("hidden");};
+btnClose.onclick=()=>modal.classList.add("hidden");
+btnSave.onclick=()=>{localStorage.setItem("pexelsKey",document.getElementById("pexelsKey").value.trim());alert("✅ 已儲存 API Key");modal.classList.add("hidden");};
 
-btnGenerate.addEventListener('click',()=>{const q=buildQuery()||'travel';output.classList.remove('hidden');const enHead=`${q} cinematic travel video 10–15s 1080×1920`;const zhHead=`以${q}為主題的10–15秒旅行短片 1080×1920比例`;
-function makeText(mode){if(mode==='cinematic'){return`🎬 *Cinematic Title / 電影感標題*\nEN: Journey Through ${q}\nZH: ${q} 旅程的電影畫面\n\nDescription 描述:\nEN: A cinematic travel montage showcasing ${q} — natural light, soft motion, emotional storytelling.\nZH: 一段以${q}為主題的電影感旅行剪輯，柔光慢景，情緒敘事。\n\nHashtags:\n#${q.replace(/ /g,'#')} #cinematic #travel #shortfilm`;}
-if(mode==='seo'){return`🧭 *Search-Friendly Title / 旅遊SEO標題*\nEN: Discover ${q} in 4K – Travel Guide & City Highlights\nZH: ${q} 旅遊指南與城市亮點 4K 影片\n\nDescription 描述:\nEN: Explore the best of ${q}, including landmarks, food, and local culture. Perfect for travelers!\nZH: 探索${q}的美景、美食與文化，為旅人打造的精選影片。\n\nHashtags:\n#${q.replace(/ /g,'#')} #travelguide #explore #4k`;}
-if(mode==='clickbait'){return`😂 *Clickbait Title / 吸睛短影音標題*\nEN: You Won’t Believe What Happened in ${q}! 😱\nZH: ${q} 發生的事你絕對想不到！😱\n\nDescription 描述:\nEN: Funny, surprising, and heartwarming clips filmed around ${q}. Perfect for YouTube Shorts.\nZH: 充滿驚喜與趣味的${q} 短影音集錦，適合YouTube Shorts！\n\nHashtags:\n#${q.replace(/ /g,'#')} #funny #shorts #viral`;}}
-textOutput.textContent=makeText('cinematic');output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));});
-</script>
-  <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js")
-    .then(() => console.log("✅ Service Worker registered"))
-    .catch((err) => console.error("SW failed:", err));
+// SW register
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").then(()=>console.log("SW ok")).catch(e=>console.error("SW fail",e));
 }
 </script>
-
 </body>
 </html>
