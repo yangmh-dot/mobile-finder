@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Image & Short Video Finder (Single File)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { background:#0b1020; color:#e8ecf1; }
+    .card { background:rgba(255,255,255,0.06); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.08); }
+    .btn { border:1px solid rgba(255,255,255,0.14); }
+    .input { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); }
+    .pill { background:rgba(255,255,255,0.08); }
+    a { color:#93c5fd }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-30 bg-[#0b1020]/70 backdrop-blur border-b border-white/10">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+      <svg class="w-8 h-8" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="12" width="36" height="26" rx="4" fill="#1877f2"/>
+        <circle cx="24" cy="25" r="8" fill="white"/>
+        <circle cx="24" cy="25" r="4" fill="#1877f2"/>
+      </svg>
+      <div>
+        <div class="text-lg font-semibold">Image & Short Video Finder</div>
+        <div class="text-xs text-white/60">單檔版（無 SW/Manifest）。適合直接貼到 GitHub Pages 或手機快速測試。</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <button id="btnSettings" class="btn px-3 py-1.5 rounded-xl text-sm">Settings</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-4">
+    <section class="card rounded-2xl p-4 mb-4">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-white/70">Country（國家）</label>
+          <select id="country" class="input w-full px-3 py-2 rounded-xl"></select>
+        </div>
+        <div>
+          <label class="text-xs text-white/70">City（城市）</label>
+          <select id="city" class="input w-full px-3 py-2 rounded-xl"></select>
+        </div>
+        <div>
+          <label class="text-xs text-white/70">Place / Scenery（地點/景色）</label>
+          <select id="place" class="input w-full px-3 py-2 rounded-xl">
+            <option>Any</option>
+            <option>Landmark</option>
+            <option>Street</option>
+            <option>Market</option>
+            <option>Café</option>
+            <option>Park</option>
+            <option>Beach</option>
+            <option>Mountain</option>
+            <option>Museum</option>
+            <option>Temple</option>
+            <option>Night View</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-white/70">Keywords（關鍵字）</label>
+          <input id="keywords" class="input w-full px-3 py-2 rounded-xl" placeholder="e.g. sunset, skyline, lanterns">
+        </div>
+        <div>
+          <label class="text-xs text-white/70">Aspect（比例）</label>
+          <select id="aspect" class="input w-full px-3 py-2 rounded-xl">
+            <option value="any">Any</option>
+            <option value="vertical">Vertical (9:16)</option>
+            <option value="horizontal">Horizontal (16:9)</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-white/70">Source（來源）</label>
+          <select id="source" class="input w-full px-3 py-2 rounded-xl">
+            <option value="images">Images (Wikimedia)</option>
+            <option value="videos">Short Videos (Pexels API key)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button id="btnSearch" class="btn px-4 py-2 rounded-xl">Search 搜尋</button>
+        <button id="btnClear" class="btn px-4 py-2 rounded-xl">Clear 清除</button>
+        <button id="btnPrompt" class="btn px-4 py-2 rounded-xl">Copy Gen Prompt</button>
+      </div>
+      <p class="text-xs text-white/50 mt-2">Images：Wikimedia Commons（免金鑰）。Videos：Pexels（需在 Settings 貼上 API Key）。</p>
+    </section>
+
+    <section id="results" class="grid grid-cols-2 gap-3"></section>
+    <div class="flex justify-center mt-4">
+      <button id="btnMore" class="btn px-4 py-2 rounded-xl hidden">Load More 載入更多</button>
+    </div>
+  </main>
+
+  <!-- Settings Modal -->
+  <dialog id="settings" class="card rounded-2xl p-0 w-[92vw] max-w-md">
+    <form method="dialog">
+      <div class="p-4 border-b border-white/10">
+        <div class="text-base font-semibold">Settings 設定</div>
+      </div>
+      <div class="p-4 space-y-3">
+        <div>
+          <label class="text-xs text-white/70 block mb-1">Pexels API Key（影片）</label>
+          <input id="pexelsKey" class="input w-full px-3 py-2 rounded-xl" placeholder="Paste your Pexels API key">
+          <p class="text-xs text-white/50 mt-1">到 pexels.com 免費申請金鑰。沒有也可以使用圖片模式。</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="safeMode" type="checkbox" class="accent-blue-500">
+          <label for="safeMode" class="text-sm">Safe Mode（過濾成人內容）</label>
+        </div>
+      </div>
+      <div class="p-3 flex justify-end gap-2 border-t border-white/10">
+        <button class="btn px-4 py-2 rounded-xl" value="cancel">Close</button>
+        <button id="btnSaveSettings" class="btn px-4 py-2 rounded-xl" value="default">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+  // ------- UI refs -------
+  const countrySel = document.getElementById('country');
+  const citySel = document.getElementById('city');
+  const placeSel = document.getElementById('place');
+  const aspectSel = document.getElementById('aspect');
+  const keywordsInput = document.getElementById('keywords');
+  const sourceSel = document.getElementById('source');
+  const btnSearch = document.getElementById('btnSearch');
+  const btnClear = document.getElementById('btnClear');
+  const btnMore = document.getElementById('btnMore');
+  const resultsEl = document.getElementById('results');
+  const btnPrompt = document.getElementById('btnPrompt');
+
+  const settingsDlg = document.getElementById('settings');
+  const btnSettings = document.getElementById('btnSettings');
+  const btnSaveSettings = document.getElementById('btnSaveSettings');
+  const pexelsKeyInput = document.getElementById('pexelsKey');
+  const safeModeInput = document.getElementById('safeMode');
+
+  // ------- Static Country -> City data -------
+  const DATA = {
+    "Any": ["Any"],
+    "Taiwan": ["Any","Taipei","Taichung","Tainan","Kaohsiung","Hualien"],
+    "Japan": ["Any","Tokyo","Kyoto","Osaka","Sapporo","Fukuoka"],
+    "United States": ["Any","New York","Los Angeles","San Francisco","Chicago","Seattle"],
+    "South Korea": ["Any","Seoul","Busan","Incheon","Daegu","Jeju"],
+    "Thailand": ["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi"],
+    "France": ["Any","Paris","Nice","Lyon","Marseille","Bordeaux"],
+    "United Kingdom": ["Any","London","Edinburgh","Manchester","Liverpool","Bristol"],
+    "Mexico": ["Any","Mexico City","Guadalajara","Monterrey","Tijuana","Puebla"],
+    "Italy": ["Any","Rome","Milan","Venice","Florence","Naples"],
+    "Indonesia": ["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya"],
+  };
+
+  function initSelects() {
+    for (const c of Object.keys(DATA)) {
+      const opt = document.createElement('option');
+      opt.textContent = c; countrySel.appendChild(opt);
+    }
+    countrySel.value = localStorage.getItem('finder.country') || 'Any';
+    populateCities();
+    citySel.value = localStorage.getItem('finder.city') || 'Any';
+    placeSel.value = localStorage.getItem('finder.place') || 'Any';
+    aspectSel.value = localStorage.getItem('finder.aspect') || 'any';
+    sourceSel.value = localStorage.getItem('finder.source') || 'images';
+    keywordsInput.value = localStorage.getItem('finder.keywords') || '';
+  }
+
+  function populateCities() {
+    citySel.innerHTML='';
+    const cities = DATA[countrySel.value] || ["Any"];
+    for (const c of cities) { const o=document.createElement('option'); o.textContent=c; citySel.appendChild(o); }
+  }
+  countrySel.addEventListener('change', ()=>{ populateCities(); citySel.value='Any'; });
+
+  // ------- Settings -------
+  btnSettings.addEventListener('click', ()=>{
+    pexelsKeyInput.value = localStorage.getItem('finder.pexelsKey') || '';
+    safeModeInput.checked = localStorage.getItem('finder.safe') === '1';
+    settingsDlg.showModal();
+  });
+  btnSaveSettings.addEventListener('click', (e)=>{
+    e.preventDefault();
+    localStorage.setItem('finder.pexelsKey', pexelsKeyInput.value.trim());
+    localStorage.setItem('finder.safe', safeModeInput.checked ? '1':'0');
+    settingsDlg.close();
+  });
+
+  // ------- Query helpers -------
+  let nextWikimediaContinue = null;
+  let nextPexelsPage = 1;
+
+  function syncPersist(){
+    localStorage.setItem('finder.country', countrySel.value);
+    localStorage.setItem('finder.city', citySel.value);
+    localStorage.setItem('finder.place', placeSel.value);
+    localStorage.setItem('finder.aspect', aspectSel.value);
+    localStorage.setItem('finder.source', sourceSel.value);
+    localStorage.setItem('finder.keywords', keywordsInput.value.trim());
+  }
+
+  function buildQuery(){
+    const parts=[];
+    if (countrySel.value!=="Any") parts.push(countrySel.value);
+    if (citySel.value!=="Any") parts.push(citySel.value);
+    if (placeSel.value!=="Any") parts.push(placeSel.value);
+    if (keywordsInput.value.trim()) parts.push(keywordsInput.value.trim());
+    return parts.join(' ').trim() || 'travel';
+  }
+
+  function aspectFilter(w,h){
+    const r = w&&h ? (w/h) : 1;
+    if (aspectSel.value==='vertical') return r<0.9;
+    if (aspectSel.value==='horizontal') return r>1.1;
+    if (aspectSel.value==='square') return r>0.9 && r<1.1;
+    return true;
+  }
+
+  function cardTpl({thumb,title,link,author,source,extra}){
+    const el = document.createElement('div');
+    el.className = 'card rounded-2xl overflow-hidden';
+    el.innerHTML = `
+      <a href="${link}" target="_blank" rel="noopener" class="block">
+        <img src="${thumb}" alt="${title}" class="w-full aspect-[4/5] object-cover" loading="lazy">
+      </a>
+      <div class="p-3 space-y-2">
+        <div class="text-sm font-medium line-clamp-2">${title||'Untitled'}</div>
+        <div class="text-xs text-white/60">${author? author+' · ':''}${source}</div>
+        <div class="flex gap-2">
+          <button class="btn px-3 py-1.5 rounded-xl text-sm" data-copy="${link}">Copy URL</button>
+          ${extra||''}
+        </div>
+      </div>`;
+    el.querySelectorAll('button[data-copy]').forEach(b=>{
+      b.addEventListener('click', async()=>{
+        try{ await navigator.clipboard.writeText(b.getAttribute('data-copy')); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy URL',1200);}catch(e){ alert('Copy failed'); }
+      });
+    });
+    return el;
+  }
+
+  async function searchWikimedia(reset=false){
+    if (reset){ resultsEl.innerHTML=''; nextWikimediaContinue=null; }
+    const q = buildQuery();
+    const params = new URLSearchParams({
+      action:'query', format:'json', origin:'*',
+      generator:'search', gsrsearch:q, gsrnamespace:'6', gsrlimit:'24',
+      prop:'imageinfo|pageimages|info', inprop:'url', piprop:'thumbnail', pithumbsize:'720', iiprop:'url|mime|size|extmetadata'
+    });
+    if (nextWikimediaContinue){ for(const [k,v] of Object.entries(nextWikimediaContinue)) params.set(k,v); }
+    const api = 'https://commons.wikimedia.org/w/api.php?'+params.toString();
+    const resp = await fetch(api); const data = await resp.json();
+    const pages = data.query?.pages || {}; const arr = Object.values(pages).sort((a,b)=> (a.index||0)-(b.index||0));
+    let shown=0;
+    for (const p of arr){
+      const info = (p.imageinfo && p.imageinfo[0])||null; if(!info) continue;
+      const w = info.width||0, h = info.height||0; if (!aspectFilter(w,h)) continue;
+      const thumb = (p.thumbnail && p.thumbnail.source) || info.url;
+      const title = p.title?.replace('File:','') || 'Untitled';
+      const author = info.extmetadata?.Artist?.value ? info.extmetadata.Artist.value.replace(/<[^>]+>/g,'') : '';
+      const link = info.descriptionurl || info.url;
+      resultsEl.appendChild(cardTpl({ thumb, title, link, author, source:'Wikimedia Commons', extra:`<a class='btn px-3 py-1.5 rounded-xl text-sm' href='${info.url}' target='_blank'>Open</a>` }));
+      shown++;
+    }
+    nextWikimediaContinue = data.continue || null;
+    btnMore.classList.toggle('hidden', !nextWikimediaContinue);
+    return shown;
+  }
+
+  async function searchPexels(reset=false){
+    const key = localStorage.getItem('finder.pexelsKey') || '';
+    if (!key){ alert('請先在 Settings 貼上 Pexels API Key，或改用 Images 模式'); return 0; }
+    if (reset){ resultsEl.innerHTML=''; nextPexelsPage=1; }
+    const q = buildQuery();
+    const orientation = aspectSel.value==='vertical' ? 'portrait' : aspectSel.value==='horizontal' ? 'landscape' : 'square';
+    const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&orientation=${encodeURIComponent(orientation)}&per_page=20&page=${nextPexelsPage}`;
+    const resp = await fetch(url, { headers:{ Authorization:key } });
+    if (!resp.ok){ alert('Pexels API error: '+resp.status); return 0; }
+    const data = await resp.json(); let shown=0;
+    for (const v of (data.videos||[])){
+      const thumb = v.image; const title = v.user?.name || 'Pexels Video'; const link = v.url;
+      const files = v.video_files||[]; const best = files.sort((a,b)=> (b.width*b.height)-(a.width*a.height))[0]; const dl = best? best.link:link;
+      resultsEl.appendChild(cardTpl({ thumb, title, link, author:v.user?.name||'', source:'Pexels (video)', extra:`<a class='btn px-3 py-1.5 rounded-xl text-sm' href='${dl}' target='_blank'>Open File</a>` }));
+      shown++;
+    }
+    nextPexelsPage += 1;
+    btnMore.classList.toggle('hidden', (data.videos||[]).length < 20);
+    return shown;
+  }
+
+  // Actions
+  btnSearch.addEventListener('click', async ()=>{
+    localStorage.setItem('finder.country', countrySel.value);
+    localStorage.setItem('finder.city', citySel.value);
+    localStorage.setItem('finder.place', placeSel.value);
+    localStorage.setItem('finder.aspect', aspectSel.value);
+    localStorage.setItem('finder.source', sourceSel.value);
+    localStorage.setItem('finder.keywords', keywordsInput.value.trim());
+    if (sourceSel.value==='images') await searchWikimedia(true); else await searchPexels(true);
+  });
+  btnMore.addEventListener('click', async ()=>{ if (sourceSel.value==='images') await searchWikimedia(false); else await searchPexels(false); });
+  btnClear.addEventListener('click', ()=>{ keywordsInput.value=''; resultsEl.innerHTML=''; btnMore.classList.add('hidden'); });
+  btnPrompt.addEventListener('click', async ()=>{
+    const q = buildQuery();
+    const aspect = aspectSel.value==='vertical' ? 'Vertical 9:16' : aspectSel.value==='horizontal' ? 'Horizontal 16:9' : 'Square';
+    const en = `${aspect}, 1080×1920, 30fps, duration 10–15s. Cinematic travel montage in ${q}. Golden-hour soft light, gentle gimbal moves, realistic textures and signage details, natural color grade, ambient street sounds under modern chill music.`;
+    const zh = `直式或指定比例，1080×1920，30fps，時長 10–15 秒。以 ${q} 為主題的旅行剪輯，黃金時段柔光，平滑運鏡，寫實材質與招牌細節，自然調色，環境聲混在音樂底下。`;
+    const finalText = `EN:\n${en}\n\nZH:\n${zh}`;
+    try{ await navigator.clipboard.writeText(finalText); alert('已複製生成提示（中英）'); }catch(e){ alert(finalText); }
+  });
+
+  // Init
+  initSelects();
+  </script>
+</body>
+</html>
