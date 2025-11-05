@@ -140,20 +140,62 @@
 
   // ------- Static Country -> City data -------
   const DATA = {
-    "Any": ["Any"],
-    "Taiwan": ["Any","Taipei","Taichung","Tainan","Kaohsiung","Hualien"],
-    "Japan": ["Any","Tokyo","Kyoto","Osaka","Sapporo","Fukuoka"],
-   "United States": [  "Any",  "New York",  "Los Angeles",  "San Francisco",  "Chicago", "Seattle",  "Las Vegas",  "Miami",  "Washington D.C.",  "Boston",  "Philadelphia",  "Houston",
-  "Dallas",  "Austin",  "Denver",  "Portland",  "San Diego",  "Phoenix",  "Orlando",  "Atlanta",  "Honolulu",  "New Orleans",  "Detroit",  "Minneapolis",
-  "Salt Lake City",  "Nashville"],
-    "South Korea": ["Any","Seoul","Busan","Incheon","Daegu","Jeju"],
-    "Thailand": ["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi"],
-    "France": ["Any","Paris","Nice","Lyon","Marseille","Bordeaux"],
-    "United Kingdom": ["Any","London","Edinburgh","Manchester","Liverpool","Bristol"],
-    "Mexico": ["Any","Mexico City","Guadalajara","Monterrey","Tijuana","Puebla"],
-    "Italy": ["Any","Rome","Milan","Venice","Florence","Naples"],
-    "Indonesia": ["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya"],
-  };
+  "Any": ["Any"],
+
+  "United States": [
+    "Any",
+    "New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas",
+    "Miami","Washington D.C.","Boston","Philadelphia","Houston","Dallas",
+    "Austin","Denver","Portland","San Diego","Phoenix","Orlando","Atlanta",
+    "Honolulu","New Orleans","Detroit","Minneapolis","Salt Lake City","Nashville",
+    "San Antonio","Tampa","Baltimore","Sacramento","Kansas City"
+  ],
+
+  "Canada": [
+    "Any","Toronto","Vancouver","Montreal","Ottawa","Calgary",
+    "Edmonton","Quebec City","Halifax","Winnipeg","Victoria"
+  ],
+
+  "Mexico": [
+    "Any","Mexico City","Guadalajara","Monterrey","Tijuana",
+    "Puebla","Cancún","Mérida","Oaxaca","Cabo San Lucas"
+  ],
+
+  "Japan": [
+    "Any","Tokyo","Kyoto","Osaka","Sapporo","Fukuoka",
+    "Nagoya","Nara","Yokohama","Kobe","Hiroshima","Okinawa"
+  ],
+
+  "Taiwan": [
+    "Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan",
+    "Kaohsiung","Hualien","Yilan","Taitung","Chiayi"
+  ],
+
+  "South Korea": [
+    "Any","Seoul","Busan","Incheon","Daegu","Jeju","Gwangju","Daejeon","Suwon"
+  ],
+
+  "Thailand": [
+    "Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin"
+  ],
+
+  "France": [
+    "Any","Paris","Nice","Lyon","Marseille","Bordeaux","Toulouse","Strasbourg","Cannes"
+  ],
+
+  "United Kingdom": [
+    "Any","London","Edinburgh","Manchester","Liverpool","Bristol","Birmingham","Glasgow","Oxford","Cambridge"
+  ],
+
+  "Italy": [
+    "Any","Rome","Milan","Venice","Florence","Naples","Turin","Bologna","Pisa","Verona"
+  ],
+
+  "Indonesia": [
+    "Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok"
+  ]
+};
+
 
   function initSelects() {
     for (const c of Object.keys(DATA)) {
