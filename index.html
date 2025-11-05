@@ -8,26 +8,29 @@
   <meta name="theme-color" content="#3b82f6">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { background-color: #f9fafc; color: #1f2937; font-family: 'Inter', sans-serif; }
-    header { border-bottom: 3px solid #3b82f6; background: white; }
+    body { background-color: #f9fafc; color: #1f2937; font-family: 'Inter', system-ui, -apple-system, "Noto Sans TC", "PingFang TC", sans-serif; }
+    header { border-bottom: 3px solid #3b82f6; background: white; position: sticky; top: 0; z-index: 20; }
     .card { background: white; border: 1px solid #cfe1ff; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-    .btn { background: #3b82f6; color: white; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 500; }
+    .btn { background: #3b82f6; color: white; border-radius: 0.6rem; padding: 0.55rem 1rem; font-weight: 600; }
     .btn:hover { background: #2563eb; }
-    select, input { border: 1px solid #93c5fd; border-radius: 0.5rem; padding: 0.4rem 0.6rem; }
-    #results img, video { border-radius: 0.5rem; transition: transform 0.2s; }
-    #results img:hover, video:hover { transform: scale(1.05); }
+    .btn-alt { background: #e5e7eb; color: #1f2937; }
+    select, input { border: 1px solid #93c5fd; border-radius: 0.6rem; padding: 0.5rem 0.7rem; }
+    #results img, #results video { border-radius: 0.6rem; }
+    .badge { font-size: 12px; padding: 2px 8px; border: 1px solid #93c5fd; border-radius: 999px; color: #1f2937; background: #eef5ff; }
+    .ghost { opacity: .7; }
   </style>
 </head>
 <body>
 <header class="px-4 py-3 flex justify-between items-center">
-  <div class="text-lg font-semibold text-blue-700">📸 AI 影片搜尋器</div>
-  <button id="btnSettings" class="text-blue-600 font-medium">⚙️ Settings</button>
+  <div class="text-lg md:text-xl font-bold text-blue-700">📸 AI 影片搜尋器</div>
+  <button id="btnSettings" class="text-blue-600 font-semibold">⚙️ Settings</button>
 </header>
 
-<main class="max-w-5xl mx-auto p-4 space-y-4">
+<main class="max-w-6xl mx-auto p-4 space-y-4">
+  <!-- Search Controls -->
   <section class="card p-4 rounded-xl">
     <h2 class="text-lg font-semibold mb-2 text-blue-700">搜尋設定 / Search Settings</h2>
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <div><label class="text-sm">Country 國家</label><select id="country" class="w-full"></select></div>
       <div><label class="text-sm">City 城市</label><select id="city" class="w-full"></select></div>
       <div><label class="text-sm">Place 地點</label>
@@ -36,27 +39,42 @@
           <option>Park</option><option>Temple</option><option>Café</option><option>Street</option>
         </select></div>
       <div><label class="text-sm">Theme 主題</label><select id="theme" class="w-full"></select></div>
-      <div><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat"></div>
-    </div>
-
-    <div class="mt-3 flex gap-2 flex-wrap">
-      <button id="btnSearch" class="btn">🔍 Search</button>
-      <button id="btnClear" class="btn bg-gray-300 text-gray-700">Clear</button>
-      <button id="btnGenerate" class="btn bg-green-500">✨ Generate Titles</button>
-      <button id="modeImages" class="btn bg-blue-500">📷 Images</button>
-      <button id="modeVideos" class="btn bg-purple-500">🎥 Videos</button>
+      <div class="lg:col-span-2"><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat"></div>
+      <div><label class="text-sm">Mode 模式</label>
+        <div class="flex gap-2">
+          <button id="modeImages" class="btn bg-blue-600 flex-1">📷 Images</button>
+          <button id="modeVideos" class="btn btn-alt flex-1 text-blue-700 border border-blue-300">🎥 Videos</button>
+        </div>
+      </div>
+      <div class="flex items-end gap-2">
+        <button id="btnSearch" class="btn">🔍 Search</button>
+        <button id="btnClear" class="btn btn-alt">Clear</button>
+        <button id="btnGenerate" class="btn bg-green-500">✨ Generate Titles</button>
+      </div>
     </div>
   </section>
 
-  <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
-  <section id="results" class="grid grid-cols-2 md:grid-cols-3 gap-3"></section>
+  <!-- Tips (hidden by default; you can toggle display:block via dev tools if ever needed) -->
+  <div id="tip" class="hidden text-sm text-blue-700">📷 使用 Wikimedia / 🎥 使用 Pexels（需 API Key）</div>
 
+  <!-- Results -->
+  <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
+  <section id="results" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></section>
+  <div class="flex justify-center">
+    <button id="btnMore" class="btn hidden">Load More</button>
+  </div>
+
+  <!-- Copy toast -->
+  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 bg-black text-white px-3 py-2 rounded-lg text-sm hidden">已複製連結</div>
+
+  <!-- Titles -->
   <div id="output" class="card p-4 rounded-xl hidden">
     <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description</h3>
-    <div class="flex gap-2 mb-2">
+    <div class="flex gap-2 mb-2 flex-wrap">
       <button class="btn bg-blue-500" data-mode="cinematic">Cinematic</button>
       <button class="btn bg-purple-500" data-mode="seo">SEO</button>
       <button class="btn bg-pink-500" data-mode="clickbait">Clickbait</button>
+      <button id="btnCopyText" class="btn btn-alt text-blue-700 border border-blue-300">📄 Copy Text</button>
     </div>
     <pre id="textOutput" class="whitespace-pre-wrap text-sm"></pre>
   </div>
@@ -64,99 +82,390 @@
 
 <!-- Settings Modal -->
 <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-  <div class="bg-white p-5 rounded-xl w-80">
+  <div class="bg-white p-5 rounded-xl w-[92vw] max-w-md">
     <h3 class="text-blue-700 font-semibold mb-2">⚙️ API 設定</h3>
-    <p class="text-sm mb-2">輸入你的 Pexels API Key（選填）：</p>
+    <p class="text-sm mb-2">輸入你的 Pexels API Key（選填，用於圖片與影片搜尋）：</p>
     <input id="pexelsKey" type="text" placeholder="Pexels API Key" class="w-full border p-2 mb-3 rounded">
     <div class="flex justify-end gap-2">
       <button id="btnSaveKey" class="btn">Save</button>
-      <button id="btnCloseSettings" class="btn bg-gray-300 text-gray-700">Close</button>
+      <button id="btnCloseSettings" class="btn btn-alt">Close</button>
     </div>
   </div>
 </div>
 
 <script>
-// === DATA ===
-const DATA={
-  "Any":["Any"],
-  "United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver","Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu"],
-  "Japan":["Any","Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Hiroshima","Fukuoka","Okinawa"],
-  "Taiwan":["Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"],
-  "South Korea":["Any","Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"],
-  "Thailand":["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin"],
-  "Indonesia":["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok"],
-  "Vietnam":["Any","Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang"],
-  "Philippines":["Any","Manila","Cebu","Davao","Baguio","Boracay","Palawan"],
-  "Malaysia":["Any","Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Langkawi"],
-  "Singapore":["Any","Downtown","Marina Bay","Sentosa","Orchard","Chinatown"]
+/* =======================
+   Data (Countries / Cities / Themes / Place mapping)
+======================= */
+const DATA = {
+  "Any": ["Any"],
+
+  // United States + Asia focus
+  "United States": [
+    "Any",
+    "New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami",
+    "Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver",
+    "Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans"
+  ],
+  "Japan": [
+    "Any","Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Hiroshima","Fukuoka","Okinawa","Nara"
+  ],
+  "Taiwan": [
+    "Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"
+  ],
+  "South Korea": [
+    "Any","Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"
+  ],
+  "Thailand": [
+    "Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin","Chiang Rai"
+  ],
+  "Indonesia": [
+    "Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok","Makassar"
+  ],
+  "Vietnam": [
+    "Any","Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang","Hue","Phu Quoc"
+  ],
+  "Philippines": [
+    "Any","Manila","Quezon City","Cebu","Davao","Baguio","Boracay","Palawan"
+  ],
+  "Malaysia": [
+    "Any","Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Johor Bahru","Langkawi","Ipoh"
+  ],
+  "Singapore": [
+    "Any","Downtown","Marina Bay","Sentosa","Chinatown","Little India","Orchard"
+  ]
 };
-const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Mountains","Festivals","Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"];
 
-const country=document.getElementById("country"),city=document.getElementById("city"),theme=document.getElementById("theme");
-for(const c in DATA){let o=document.createElement("option");o.textContent=c;country.appendChild(o);}
-for(const t of THEMES){let o=document.createElement("option");o.textContent=t;theme.appendChild(o);}
-country.addEventListener("change",()=>{city.innerHTML='';(DATA[country.value]||["Any"]).forEach(x=>{let o=document.createElement("option");o.textContent=x;city.appendChild(o);});});
-country.dispatchEvent(new Event("change"));
+const THEMES = [
+  "Any","Animals","Nature","Architecture","Food","People","Night View",
+  "Beach & Ocean","City Streets","Countryside","Mountains","Festivals",
+  "Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"
+];
 
-// === Elements ===
-const btnSearch=document.getElementById("btnSearch"),btnClear=document.getElementById("btnClear"),results=document.getElementById("results"),loading=document.getElementById("loading");
-const modeImages=document.getElementById("modeImages"),modeVideos=document.getElementById("modeVideos");
-let searchMode="images";
+// Optional query enrichment for Place
+const PLACE_MAP = {
+  "Any": "", "Landmark": "landmark", "Beach": "beach coast ocean",
+  "Park": "park garden", "Temple": "temple shrine", "Café": "cafe coffee",
+  "Street": "street city"
+};
 
-modeImages.onclick=()=>{searchMode="images";modeImages.classList.add("bg-blue-700");modeVideos.classList.remove("bg-blue-700");};
-modeVideos.onclick=()=>{searchMode="videos";modeVideos.classList.add("bg-blue-700");modeImages.classList.remove("bg-blue-700");};
+/* =======================
+   Elements & State
+======================= */
+const country = document.getElementById("country");
+const city = document.getElementById("city");
+const place = document.getElementById("place");
+const theme = document.getElementById("theme");
+const keywords = document.getElementById("keywords");
+const results = document.getElementById("results");
+const loading = document.getElementById("loading");
+const btnMore = document.getElementById("btnMore");
+const toast = document.getElementById("toast");
 
-btnSearch.addEventListener("click",async()=>{
-  results.innerHTML='';loading.classList.remove("hidden");
-  const q=[country.value,city.value,document.getElementById("place").value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
-  const key=localStorage.getItem("pexelsKey");
-  try{
-    let data=[];
-    if(searchMode==="videos" && key){
-      const res=await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=9`,{headers:{Authorization:key}});
-      const j=await res.json();data=j.videos.map(v=>({thumb:v.video_pictures?.[0]?.picture,url:v.video_files?.[0]?.link,type:"video"}));
-    }else if(key){
-      const res=await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=9`,{headers:{Authorization:key}});
-      const j=await res.json();data=j.photos.map(p=>({thumb:p.src.medium,url:p.src.original,type:"image"}));
-    }else{
-      const res=await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=9&prop=imageinfo&iiprop=url`);
-      const j=await res.json();data=Object.values(j.query?.pages||{}).map(p=>({thumb:p.imageinfo?.[0]?.url,url:p.imageinfo?.[0]?.url,type:"image"}));
-    }
-    results.innerHTML=data.map(d=>{
-      if(d.type==="video"){return`<video src='${d.url}' controls class='w-full rounded'></video>`;}
-      return`<a href='${d.url}' target='_blank'><img src='${d.thumb}' class='w-full'></a>`;
-    }).join('');
-  }catch(e){
-    results.innerHTML='<p class="text-red-500">❌ 搜尋失敗，請稍後再試</p>';
+const modeImages = document.getElementById("modeImages");
+const modeVideos = document.getElementById("modeVideos");
+let searchMode = "images";          // "images" | "videos"
+const PAGE_SIZE = 12;
+
+// Wikimedia pagination
+let wikiContinue = null;
+// Pexels pagination
+let pexelsPage = 1;
+
+/* =======================
+   Init Selects
+======================= */
+for (const c of Object.keys(DATA)) {
+  const opt = document.createElement("option");
+  opt.textContent = c;
+  country.appendChild(opt);
+}
+for (const t of THEMES) {
+  const opt = document.createElement("option");
+  opt.textContent = t;
+  theme.appendChild(opt);
+}
+function populateCities() {
+  city.innerHTML = "";
+  (DATA[country.value] || ["Any"]).forEach(x => {
+    const o = document.createElement("option");
+    o.textContent = x;
+    city.appendChild(o);
+  });
+}
+country.addEventListener("change", populateCities);
+populateCities();
+
+/* =======================
+   Helpers
+======================= */
+function buildQuery() {
+  const parts = [];
+  if (country.value !== "Any") parts.push(country.value);
+  if (city.value !== "Any") parts.push(city.value);
+  const pm = PLACE_MAP[place.value] || "";
+  if (pm) parts.push(pm);
+  if (theme.value !== "Any") parts.push(theme.value);
+  if (keywords.value.trim()) parts.push(keywords.value.trim());
+  return parts.join(" ").trim() || "travel";
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.textContent = "已複製連結";
+    toast.classList.remove("hidden");
+    setTimeout(()=>toast.classList.add("hidden"), 1200);
+  } catch(e) {
+    alert(text); // fallback
   }
-  loading.classList.add("hidden");
+}
+
+function fmtDuration(sec) {
+  if (!sec && sec !== 0) return "";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m <= 0) return `${s}s`;
+  return `${m}m ${s}s`;
+}
+
+function cardImage({thumb, url, title="Open image"}) {
+  return `
+    <div class="card p-2 rounded-xl">
+      <a href="${url}" target="_blank" rel="noopener">
+        <img src="${thumb}" alt="${title}" class="w-full object-cover aspect-[4/3]">
+      </a>
+      <div class="flex items-center justify-between gap-2 mt-2">
+        <span class="badge">Image</span>
+        <button class="btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1" data-copy="${url}">📄 Copy Link</button>
+      </div>
+    </div>`;
+}
+
+function cardVideo({thumb, url, duration}) {
+  const dur = fmtDuration(duration);
+  return `
+    <div class="card p-2 rounded-xl">
+      <video src="${url}" poster="${thumb||''}" controls class="w-full aspect-video rounded"></video>
+      <div class="flex items-center justify-between gap-2 mt-2">
+        <span class="badge">Video ${dur ? `· ${dur}` : ""}</span>
+        <button class="btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1" data-copy="${url}">📄 Copy Link</button>
+      </div>
+    </div>`;
+}
+
+function bindCopyButtons(scope=document) {
+  scope.querySelectorAll("button[data-copy]").forEach(b=>{
+    b.addEventListener("click", ()=> copyText(b.getAttribute("data-copy")));
+  });
+}
+
+/* =======================
+   Search Implementations
+======================= */
+async function searchWikimedia(reset=false) {
+  if (reset) {
+    wikiContinue = null;
+    results.innerHTML = "";
+  }
+  const q = buildQuery();
+  const params = new URLSearchParams({
+    action: "query",
+    format: "json",
+    origin: "*",
+    generator: "search",
+    gsrsearch: q,
+    gsrlimit: PAGE_SIZE.toString(),
+    prop: "imageinfo",
+    iiprop: "url"
+  });
+  if (wikiContinue) {
+    for (const [k, v] of Object.entries(wikiContinue)) params.set(k, v);
+  }
+  const api = "https://commons.wikimedia.org/w/api.php?" + params.toString();
+  const resp = await fetch(api);
+  const data = await resp.json();
+  const pages = data.query?.pages || {};
+  const arr = Object.values(pages);
+  const frag = document.createElement("div");
+  arr.forEach(p=>{
+    const url = p.imageinfo?.[0]?.url;
+    if (url) frag.insertAdjacentHTML("beforeend", cardImage({thumb:url, url}));
+  });
+  results.appendChild(frag);
+  wikiContinue = data.continue || null;
+  btnMore.classList.toggle("hidden", !wikiContinue);
+  bindCopyButtons(results);
+}
+
+async function searchPexelsPhotos(key, reset=false) {
+  if (reset) {
+    pexelsPage = 1;
+    results.innerHTML = "";
+  }
+  const q = buildQuery();
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}`;
+  const resp = await fetch(url, { headers: { Authorization: key }});
+  const data = await resp.json();
+  const list = (data.photos || []).map(p=>({thumb: p.src?.medium || p.src?.small, url: p.src?.original }));
+  const frag = document.createElement("div");
+  list.forEach(i=> frag.insertAdjacentHTML("beforeend", cardImage(i)));
+  results.appendChild(frag);
+  bindCopyButtons(results);
+  // next page
+  const hasMore = (data.photos || []).length === PAGE_SIZE;
+  pexelsPage += 1;
+  btnMore.classList.toggle("hidden", !hasMore);
+}
+
+async function searchPexelsVideos(key, reset=false) {
+  if (reset) {
+    pexelsPage = 1;
+    results.innerHTML = "";
+  }
+  const q = buildQuery();
+  const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}`;
+  const resp = await fetch(url, { headers: { Authorization: key }});
+  const data = await resp.json();
+  const vids = (data.videos || []).map(v=>{
+    const file = (v.video_files||[]).sort((a,b)=> (b.width*b.height)-(a.width*a.height))[0] || v.video_files?.[0];
+    const url  = file?.link || v.url;
+    const thumb = v.video_pictures?.[0]?.picture || v.image;
+    return {thumb, url, duration: v.duration};
+  });
+  const frag = document.createElement("div");
+  vids.forEach(v=> frag.insertAdjacentHTML("beforeend", cardVideo(v)));
+  results.appendChild(frag);
+  bindCopyButtons(results);
+  const hasMore = (data.videos || []).length === PAGE_SIZE;
+  pexelsPage += 1;
+  btnMore.classList.toggle("hidden", !hasMore);
+}
+
+/* =======================
+   UI Events
+======================= */
+const btnSearch = document.getElementById("btnSearch");
+const btnClear  = document.getElementById("btnClear");
+
+modeImages.addEventListener("click", ()=>{
+  searchMode = "images";
+  modeImages.classList.remove("btn-alt"); modeImages.classList.add("bg-blue-600", "text-white");
+  modeVideos.classList.add("btn-alt"); modeVideos.classList.remove("bg-blue-600","text-white");
+});
+modeVideos.addEventListener("click", ()=>{
+  searchMode = "videos";
+  modeVideos.classList.remove("btn-alt"); modeVideos.classList.add("bg-blue-600", "text-white");
+  modeImages.classList.add("btn-alt"); modeImages.classList.remove("bg-blue-600","text-white");
 });
 
-btnClear.onclick=()=>{results.innerHTML='';document.getElementById("keywords").value='';};
+btnSearch.addEventListener("click", async ()=>{
+  results.innerHTML = "";
+  btnMore.classList.add("hidden");
+  wikiContinue = null; pexelsPage = 1;
+  loading.classList.remove("hidden");
+  const key = localStorage.getItem("pexelsKey") || "";
 
-// === Generate Titles ===
-const output=document.getElementById("output"),btnGenerate=document.getElementById("btnGenerate"),textOutput=document.getElementById("textOutput");
-btnGenerate.onclick=()=>{
-  output.classList.remove("hidden");
-  const q=[country.value,city.value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
-  function makeText(mode){
-    if(mode==='cinematic')return`🎬 *Cinematic Title*\\nEN: Journey Through ${q}\\nZH: ${q} 的電影感畫面`;
-    if(mode==='seo')return`🧭 *SEO Title*\\nEN: Discover ${q} in 4K – Travel Highlights\\nZH: 探索${q}的旅遊亮點`;
-    if(mode==='clickbait')return`😂 *Clickbait Title*\\nEN: You Won’t Believe What Happened in ${q}!\\nZH: ${q} 發生的事你絕對想不到！`;
+  try {
+    if (searchMode === "videos") {
+      if (!key) {
+        results.innerHTML = `<div class="card p-4 rounded-xl">
+          <div class="text-red-600 font-semibold mb-1">需要 Pexels API Key 才能搜尋影片</div>
+          <div class="text-sm">請點右上 <b>Settings</b> 貼上你的 Key，或切換到 <span class="badge">Images</span> 模式。</div>
+        </div>`;
+        loading.classList.add("hidden");
+        return;
+      }
+      await searchPexelsVideos(key, true);
+    } else {
+      // images
+      if (key) {
+        await searchPexelsPhotos(key, true);
+      } else {
+        await searchWikimedia(true);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    results.innerHTML = `<p class="text-red-500">❌ 搜尋失敗，請稍後再試</p>`;
+  } finally {
+    loading.classList.add("hidden");
   }
-  textOutput.textContent=makeText('cinematic');
-  output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));
+});
+
+btnMore.addEventListener("click", async ()=>{
+  loading.classList.remove("hidden");
+  const key = localStorage.getItem("pexelsKey") || "";
+  try {
+    if (searchMode === "videos") {
+      await searchPexelsVideos(key, false);
+    } else {
+      if (key) await searchPexelsPhotos(key, false);
+      else await searchWikimedia(false);
+    }
+  } catch(e) {
+    console.error(e);
+  } finally {
+    loading.classList.add("hidden");
+  }
+});
+
+btnClear.addEventListener("click", ()=>{
+  results.innerHTML = "";
+  btnMore.classList.add("hidden");
+  keywords.value = "";
+});
+
+/* =======================
+   Title Generator
+======================= */
+const output = document.getElementById("output");
+const btnGenerate = document.getElementById("btnGenerate");
+const textOutput = document.getElementById("textOutput");
+const btnCopyText = document.getElementById("btnCopyText");
+
+btnGenerate.addEventListener("click", ()=>{
+  output.classList.remove("hidden");
+  const q = buildQuery();
+  function makeText(mode){
+    if(mode==='cinematic')return `🎬 *Cinematic Title*\nEN: Journey Through ${q}\nZH: ${q} 的電影感畫面\n\nDescription:\nEN: A cinematic travel montage showcasing ${q} — natural light, soft motion, emotional storytelling.\nZH: 一段以 ${q} 為主題的電影感旅行剪輯，柔光慢景，情緒敘事。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #cinematic #travel #shortfilm`;
+    if(mode==='seo')return `🧭 *SEO Title*\nEN: Discover ${q} in 4K – Travel Highlights\nZH: 探索 ${q} 的旅遊亮點 4K 影片\n\nDescription:\nEN: Explore the best of ${q}, including landmarks, food, and local culture.\nZH: 精選 ${q} 的景點、美食與人文，給旅人的快速導覽。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #travelguide #explore #4k`;
+    if(mode==='clickbait')return `😂 *Clickbait Title*\nEN: You Won’t Believe What Happened in ${q}!\nZH: ${q} 發生的事你絕對想不到！\n\nDescription:\nEN: Funny, surprising, and heartwarming clips filmed around ${q}.\nZH: 集合 ${q} 的驚喜與趣味片段，超適合 Shorts。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #funny #shorts #viral`;
+  }
+  textOutput.textContent = makeText('cinematic');
+  output.querySelectorAll('button[data-mode]').forEach(b=>{
+    b.addEventListener('click', ()=> textOutput.textContent = makeText(b.dataset.mode));
+  });
+});
+btnCopyText.addEventListener("click", ()=> copyText(textOutput.textContent));
+
+/* =======================
+   Settings (API Key)
+======================= */
+const modal = document.getElementById("settingsModal");
+const btnSettings = document.getElementById("btnSettings");
+const btnClose = document.getElementById("btnCloseSettings");
+const btnSave = document.getElementById("btnSaveKey");
+const pexelsKeyInput = document.getElementById("pexelsKey");
+
+btnSettings.onclick = ()=>{
+  pexelsKeyInput.value = localStorage.getItem("pexelsKey") || "";
+  modal.classList.remove("hidden");
+};
+btnClose.onclick = ()=> modal.classList.add("hidden");
+btnSave.onclick = ()=>{
+  localStorage.setItem("pexelsKey", (pexelsKeyInput.value||"").trim());
+  alert("✅ 已儲存 API Key");
+  modal.classList.add("hidden");
 };
 
-// === Settings Modal ===
-const modal=document.getElementById("settingsModal"),btnSettings=document.getElementById("btnSettings"),btnClose=document.getElementById("btnCloseSettings"),btnSave=document.getElementById("btnSaveKey");
-btnSettings.onclick=()=>{document.getElementById("pexelsKey").value=localStorage.getItem("pexelsKey")||'';modal.classList.remove("hidden");};
-btnClose.onclick=()=>modal.classList.add("hidden");
-btnSave.onclick=()=>{localStorage.setItem("pexelsKey",document.getElementById("pexelsKey").value.trim());alert("✅ 已儲存 API Key");modal.classList.add("hidden");};
-
-// === Service Worker ===
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js").then(()=>console.log("SW ok")).catch(e=>console.error("SW fail",e));
+/* =======================
+   Service Worker
+======================= */
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(()=>console.log("SW ok"))
+    .catch(e=>console.error("SW fail", e));
 }
 </script>
 </body>
