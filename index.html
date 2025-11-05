@@ -14,8 +14,8 @@
     .btn { background: #3b82f6; color: white; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 500; }
     .btn:hover { background: #2563eb; }
     select, input { border: 1px solid #93c5fd; border-radius: 0.5rem; padding: 0.4rem 0.6rem; }
-    #results img { border-radius: 0.5rem; transition: transform 0.2s; }
-    #results img:hover { transform: scale(1.05); }
+    #results img, video { border-radius: 0.5rem; transition: transform 0.2s; }
+    #results img:hover, video:hover { transform: scale(1.05); }
   </style>
 </head>
 <body>
@@ -24,24 +24,32 @@
   <button id="btnSettings" class="text-blue-600 font-medium">⚙️ Settings</button>
 </header>
 
-<main class="max-w-4xl mx-auto p-4 space-y-4">
+<main class="max-w-5xl mx-auto p-4 space-y-4">
   <section class="card p-4 rounded-xl">
     <h2 class="text-lg font-semibold mb-2 text-blue-700">搜尋設定 / Search Settings</h2>
     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
       <div><label class="text-sm">Country 國家</label><select id="country" class="w-full"></select></div>
       <div><label class="text-sm">City 城市</label><select id="city" class="w-full"></select></div>
+      <div><label class="text-sm">Place 地點</label>
+        <select id="place" class="w-full">
+          <option>Any</option><option>Landmark</option><option>Beach</option>
+          <option>Park</option><option>Temple</option><option>Café</option><option>Street</option>
+        </select></div>
       <div><label class="text-sm">Theme 主題</label><select id="theme" class="w-full"></select></div>
-      <div><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cats"></div>
+      <div><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat"></div>
     </div>
-    <div class="mt-3 flex gap-2">
+
+    <div class="mt-3 flex gap-2 flex-wrap">
       <button id="btnSearch" class="btn">🔍 Search</button>
       <button id="btnClear" class="btn bg-gray-300 text-gray-700">Clear</button>
       <button id="btnGenerate" class="btn bg-green-500">✨ Generate Titles</button>
+      <button id="modeImages" class="btn bg-blue-500">📷 Images</button>
+      <button id="modeVideos" class="btn bg-purple-500">🎥 Videos</button>
     </div>
   </section>
 
-  <section id="results" class="grid grid-cols-2 md:grid-cols-3 gap-3"></section>
   <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
+  <section id="results" class="grid grid-cols-2 md:grid-cols-3 gap-3"></section>
 
   <div id="output" class="card p-4 rounded-xl hidden">
     <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description</h3>
@@ -54,8 +62,8 @@
   </div>
 </main>
 
-<!-- Settings modal -->
-<div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center">
+<!-- Settings Modal -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-50">
   <div class="bg-white p-5 rounded-xl w-80">
     <h3 class="text-blue-700 font-semibold mb-2">⚙️ API 設定</h3>
     <p class="text-sm mb-2">輸入你的 Pexels API Key（選填）：</p>
@@ -68,113 +76,67 @@
 </div>
 
 <script>
-const DATA = {
-  "Any": ["Any"],
-
-  // 🇺🇸 United States
-  "United States": [
-    "Any",
-    "New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami",
-    "Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver",
-    "Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans",
-    "Detroit","Minneapolis","Salt Lake City","Nashville","San Antonio","Tampa",
-    "Baltimore","Sacramento","Kansas City"
-  ],
-
-  // 🇯🇵 Japan
-  "Japan": [
-    "Any",
-    "Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Nara","Hiroshima","Fukuoka","Okinawa"
-  ],
-
-  // 🇹🇼 Taiwan
-  "Taiwan": [
-    "Any",
-    "Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"
-  ],
-
-  // 🇰🇷 South Korea
-  "South Korea": [
-    "Any",
-    "Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"
-  ],
-
-  // 🇹🇭 Thailand
-  "Thailand": [
-    "Any",
-    "Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin","Chiang Rai"
-  ],
-
-  // 🇮🇩 Indonesia
-  "Indonesia": [
-    "Any",
-    "Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok","Makassar"
-  ],
-
-  // 🇻🇳 Vietnam
-  "Vietnam": [
-    "Any",
-    "Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang","Hue","Phu Quoc"
-  ],
-
-  // 🇵🇭 Philippines
-  "Philippines": [
-    "Any",
-    "Manila","Quezon City","Cebu","Davao","Baguio","Boracay","Palawan"
-  ],
-
-  // 🇲🇾 Malaysia
-  "Malaysia": [
-    "Any",
-    "Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Johor Bahru","Langkawi","Ipoh"
-  ],
-
-  // 🇸🇬 Singapore
-  "Singapore": [
-    "Any",
-    "Downtown","Marina Bay","Sentosa","Chinatown","Little India","Orchard"
-  ],
-
-  // 🇮🇳 India
-  "India": [
-    "Any",
-    "New Delhi","Mumbai","Bengaluru","Chennai","Kolkata","Hyderabad","Jaipur","Agra","Varanasi","Goa"
-  ],
-
-  // 🇭🇰 Hong Kong
-  "Hong Kong": [
-    "Any",
-    "Central","Tsim Sha Tsui","Mong Kok","Causeway Bay","Stanley","Sai Kung"
-  ]
+// === DATA ===
+const DATA={
+  "Any":["Any"],
+  "United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver","Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu"],
+  "Japan":["Any","Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Hiroshima","Fukuoka","Okinawa"],
+  "Taiwan":["Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"],
+  "South Korea":["Any","Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"],
+  "Thailand":["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin"],
+  "Indonesia":["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok"],
+  "Vietnam":["Any","Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang"],
+  "Philippines":["Any","Manila","Cebu","Davao","Baguio","Boracay","Palawan"],
+  "Malaysia":["Any","Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Langkawi"],
+  "Singapore":["Any","Downtown","Marina Bay","Sentosa","Orchard","Chinatown"]
 };
-const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Countryside","Mountains","Sports"];
+const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Mountains","Festivals","Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"];
+
 const country=document.getElementById("country"),city=document.getElementById("city"),theme=document.getElementById("theme");
 for(const c in DATA){let o=document.createElement("option");o.textContent=c;country.appendChild(o);}
 for(const t of THEMES){let o=document.createElement("option");o.textContent=t;theme.appendChild(o);}
 country.addEventListener("change",()=>{city.innerHTML='';(DATA[country.value]||["Any"]).forEach(x=>{let o=document.createElement("option");o.textContent=x;city.appendChild(o);});});
 country.dispatchEvent(new Event("change"));
+
+// === Elements ===
 const btnSearch=document.getElementById("btnSearch"),btnClear=document.getElementById("btnClear"),results=document.getElementById("results"),loading=document.getElementById("loading");
+const modeImages=document.getElementById("modeImages"),modeVideos=document.getElementById("modeVideos");
+let searchMode="images";
+
+modeImages.onclick=()=>{searchMode="images";modeImages.classList.add("bg-blue-700");modeVideos.classList.remove("bg-blue-700");};
+modeVideos.onclick=()=>{searchMode="videos";modeVideos.classList.add("bg-blue-700");modeImages.classList.remove("bg-blue-700");};
+
 btnSearch.addEventListener("click",async()=>{
   results.innerHTML='';loading.classList.remove("hidden");
-  const q=[country.value,city.value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
+  const q=[country.value,city.value,document.getElementById("place").value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
   const key=localStorage.getItem("pexelsKey");
   try{
-    let data;
-    if(key){
+    let data=[];
+    if(searchMode==="videos" && key){
+      const res=await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=9`,{headers:{Authorization:key}});
+      const j=await res.json();data=j.videos.map(v=>({thumb:v.video_pictures?.[0]?.picture,url:v.video_files?.[0]?.link,type:"video"}));
+    }else if(key){
       const res=await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=9`,{headers:{Authorization:key}});
-      const j=await res.json();data=j.photos.map(p=>p.src.medium);
+      const j=await res.json();data=j.photos.map(p=>({thumb:p.src.medium,url:p.src.original,type:"image"}));
     }else{
       const res=await fetch(`https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=9&prop=imageinfo&iiprop=url`);
-      const j=await res.json();data=Object.values(j.query?.pages||{}).map(p=>p.imageinfo?.[0]?.url).filter(Boolean);
+      const j=await res.json();data=Object.values(j.query?.pages||{}).map(p=>({thumb:p.imageinfo?.[0]?.url,url:p.imageinfo?.[0]?.url,type:"image"}));
     }
-    results.innerHTML=data.map(u=>`<a href='${u}' target='_blank'><img src='${u}' class='w-full'></a>`).join('');
-  }catch(e){results.innerHTML='<p class=\"text-red-500\">❌ 搜尋失敗，請稍後再試</p>';}
+    results.innerHTML=data.map(d=>{
+      if(d.type==="video"){return`<video src='${d.url}' controls class='w-full rounded'></video>`;}
+      return`<a href='${d.url}' target='_blank'><img src='${d.thumb}' class='w-full'></a>`;
+    }).join('');
+  }catch(e){
+    results.innerHTML='<p class="text-red-500">❌ 搜尋失敗，請稍後再試</p>';
+  }
   loading.classList.add("hidden");
 });
-btnClear.addEventListener("click",()=>{results.innerHTML='';document.getElementById("keywords").value='';});
 
+btnClear.onclick=()=>{results.innerHTML='';document.getElementById("keywords").value='';};
+
+// === Generate Titles ===
 const output=document.getElementById("output"),btnGenerate=document.getElementById("btnGenerate"),textOutput=document.getElementById("textOutput");
-btnGenerate.addEventListener("click",()=>{
+btnGenerate.onclick=()=>{
   output.classList.remove("hidden");
   const q=[country.value,city.value,theme.value,document.getElementById("keywords").value].filter(x=>x!=="Any"&&x.trim()).join(" ");
   function makeText(mode){
@@ -184,15 +146,15 @@ btnGenerate.addEventListener("click",()=>{
   }
   textOutput.textContent=makeText('cinematic');
   output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));
-});
+};
 
-// Settings modal
+// === Settings Modal ===
 const modal=document.getElementById("settingsModal"),btnSettings=document.getElementById("btnSettings"),btnClose=document.getElementById("btnCloseSettings"),btnSave=document.getElementById("btnSaveKey");
 btnSettings.onclick=()=>{document.getElementById("pexelsKey").value=localStorage.getItem("pexelsKey")||'';modal.classList.remove("hidden");};
 btnClose.onclick=()=>modal.classList.add("hidden");
 btnSave.onclick=()=>{localStorage.setItem("pexelsKey",document.getElementById("pexelsKey").value.trim());alert("✅ 已儲存 API Key");modal.classList.add("hidden");};
 
-// SW register
+// === Service Worker ===
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js").then(()=>console.log("SW ok")).catch(e=>console.error("SW fail",e));
 }
