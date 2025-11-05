@@ -68,7 +68,85 @@
 </div>
 
 <script>
-const DATA={"Any":["Any"],"United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Boston"],"Japan":["Any","Tokyo","Kyoto","Osaka","Sapporo","Okinawa"],"Taiwan":["Any","Taipei","Taichung","Tainan","Kaohsiung"]};
+const DATA = {
+  "Any": ["Any"],
+
+  // 🇺🇸 United States
+  "United States": [
+    "Any",
+    "New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami",
+    "Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver",
+    "Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans",
+    "Detroit","Minneapolis","Salt Lake City","Nashville","San Antonio","Tampa",
+    "Baltimore","Sacramento","Kansas City"
+  ],
+
+  // 🇯🇵 Japan
+  "Japan": [
+    "Any",
+    "Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Nara","Hiroshima","Fukuoka","Okinawa"
+  ],
+
+  // 🇹🇼 Taiwan
+  "Taiwan": [
+    "Any",
+    "Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"
+  ],
+
+  // 🇰🇷 South Korea
+  "South Korea": [
+    "Any",
+    "Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"
+  ],
+
+  // 🇹🇭 Thailand
+  "Thailand": [
+    "Any",
+    "Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin","Chiang Rai"
+  ],
+
+  // 🇮🇩 Indonesia
+  "Indonesia": [
+    "Any",
+    "Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok","Makassar"
+  ],
+
+  // 🇻🇳 Vietnam
+  "Vietnam": [
+    "Any",
+    "Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang","Hue","Phu Quoc"
+  ],
+
+  // 🇵🇭 Philippines
+  "Philippines": [
+    "Any",
+    "Manila","Quezon City","Cebu","Davao","Baguio","Boracay","Palawan"
+  ],
+
+  // 🇲🇾 Malaysia
+  "Malaysia": [
+    "Any",
+    "Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Johor Bahru","Langkawi","Ipoh"
+  ],
+
+  // 🇸🇬 Singapore
+  "Singapore": [
+    "Any",
+    "Downtown","Marina Bay","Sentosa","Chinatown","Little India","Orchard"
+  ],
+
+  // 🇮🇳 India
+  "India": [
+    "Any",
+    "New Delhi","Mumbai","Bengaluru","Chennai","Kolkata","Hyderabad","Jaipur","Agra","Varanasi","Goa"
+  ],
+
+  // 🇭🇰 Hong Kong
+  "Hong Kong": [
+    "Any",
+    "Central","Tsim Sha Tsui","Mong Kok","Causeway Bay","Stanley","Sai Kung"
+  ]
+};
 const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Countryside","Mountains","Sports"];
 const country=document.getElementById("country"),city=document.getElementById("city"),theme=document.getElementById("theme");
 for(const c in DATA){let o=document.createElement("option");o.textContent=c;country.appendChild(o);}
