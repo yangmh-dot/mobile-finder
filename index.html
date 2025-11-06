@@ -18,6 +18,8 @@
     #results img, #results video { border-radius: 0.6rem; }
     .badge { font-size: 12px; padding: 2px 8px; border: 1px solid #93c5fd; border-radius: 999px; color: #1f2937; background: #eef5ff; }
     .ghost { opacity: .7; }
+    .lazy { opacity: 0; transition: opacity .3s; }
+    .lazy.loaded { opacity: 1; }
   </style>
 </head>
 <body>
@@ -27,7 +29,6 @@
 </header>
 
 <main class="max-w-6xl mx-auto p-4 space-y-4">
-  <!-- Search Controls -->
   <section class="card p-4 rounded-xl">
     <h2 class="text-lg font-semibold mb-2 text-blue-700">搜尋設定 / Search Settings</h2>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -39,6 +40,11 @@
           <option>Park</option><option>Temple</option><option>Café</option><option>Street</option>
         </select></div>
       <div><label class="text-sm">Theme 主題</label><select id="theme" class="w-full"></select></div>
+      <div><label class="text-sm">Aspect Ratio 比例</label>
+        <select id="aspect" class="w-full">
+          <option selected>9:16</option><option>16:9</option><option>1:1</option>
+        </select>
+      </div>
       <div class="lg:col-span-2"><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat"></div>
       <div><label class="text-sm">Mode 模式</label>
         <div class="flex gap-2">
@@ -54,20 +60,14 @@
     </div>
   </section>
 
-  <!-- Tips (hidden by default; you can toggle display:block via dev tools if ever needed) -->
-  <div id="tip" class="hidden text-sm text-blue-700">📷 使用 Wikimedia / 🎥 使用 Pexels（需 API Key）</div>
-
-  <!-- Results -->
   <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
   <section id="results" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></section>
   <div class="flex justify-center">
     <button id="btnMore" class="btn hidden">Load More</button>
   </div>
 
-  <!-- Copy toast -->
   <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 bg-black text-white px-3 py-2 rounded-lg text-sm hidden">已複製連結</div>
 
-  <!-- Titles -->
   <div id="output" class="card p-4 rounded-xl hidden">
     <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description</h3>
     <div class="flex gap-2 mb-2 flex-wrap">
@@ -156,7 +156,9 @@ const country = document.getElementById("country");
 const city = document.getElementById("city");
 const place = document.getElementById("place");
 const theme = document.getElementById("theme");
+const aspect = document.getElementById("aspect");
 const keywords = document.getElementById("keywords");
+
 const results = document.getElementById("results");
 const loading = document.getElementById("loading");
 const btnMore = document.getElementById("btnMore");
@@ -207,7 +209,24 @@ function buildQuery() {
   if (pm) parts.push(pm);
   if (theme.value !== "Any") parts.push(theme.value);
   if (keywords.value.trim()) parts.push(keywords.value.trim());
+
+  // For Wikimedia, append aspect hint to help relevance
+  const a = aspect.value;
+  if (a === "9:16") parts.push("portrait");
+  else if (a === "16:9") parts.push("landscape");
+  else if (a === "1:1") parts.push("square");
+
   return parts.join(" ").trim() || "travel";
+}
+
+// Pexels orientation mapping
+function pexelsOrientation() {
+  switch (aspect.value) {
+    case "9:16": return "portrait";
+    case "16:9": return "landscape";
+    case "1:1":  return "square";
+    default:     return "portrait";
+  }
 }
 
 async function copyText(text) {
@@ -222,42 +241,159 @@ async function copyText(text) {
 }
 
 function fmtDuration(sec) {
-  if (!sec && sec !== 0) return "";
+  if (sec === undefined || sec === null) return "";
   const m = Math.floor(sec / 60);
-  const s = sec % 60;
+  const s = Math.round(sec % 60);
   if (m <= 0) return `${s}s`;
   return `${m}m ${s}s`;
 }
 
+// Lazy loader for images
+const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if (entry.isIntersecting) {
+      const el = entry.target;
+      const src = el.getAttribute('data-src');
+      if (src) {
+        el.src = src;
+        el.onload = ()=> el.classList.add('loaded');
+        io.unobserve(el);
+      }
+    }
+  })
+}, {rootMargin: '200px'}) : null;
+
+function makeLazyImg(src, alt, style='') {
+  const img = document.createElement('img');
+  img.setAttribute('data-src', src);
+  img.alt = alt || '';
+  img.className = 'w-full object-cover lazy';
+  if (style) img.setAttribute('style', style);
+  if (io) io.observe(img); else img.src = src;
+  img.onload = ()=> img.classList.add('loaded');
+  return img;
+}
+
+/* =======================
+   Card Builders (Image / Video-as-Thumbnail)
+======================= */
 function cardImage({thumb, url, title="Open image"}) {
-  return `
-    <div class="card p-2 rounded-xl">
-      <a href="${url}" target="_blank" rel="noopener">
-        <img src="${thumb}" alt="${title}" class="w-full object-cover aspect-[4/3]">
-      </a>
-      <div class="flex items-center justify-between gap-2 mt-2">
-        <span class="badge">Image</span>
-        <button class="btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1" data-copy="${url}">📄 Copy Link</button>
-      </div>
-    </div>`;
+  const card = document.createElement('div');
+  card.className = 'card p-2 rounded-xl';
+
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  const img = makeLazyImg(thumb, title, aspectStyle());
+  a.appendChild(img);
+
+  const bar = document.createElement('div');
+  bar.className = 'flex items-center justify-between gap-2 mt-2';
+
+  const badge = document.createElement('span');
+  badge.className = 'badge';
+  badge.textContent = 'Image';
+
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';
+  btn.textContent = '📄 Copy Link';
+  btn.addEventListener('click', ()=> copyText(url));
+
+  bar.appendChild(badge); bar.appendChild(btn);
+  card.appendChild(a); card.appendChild(bar);
+  return card;
 }
 
+// Video: show clean thumbnail; click -> replace with <video controls>; show "返回縮圖"
 function cardVideo({thumb, url, duration}) {
+  const card = document.createElement('div');
+  card.className = 'card p-2 rounded-xl';
+
+  const thumbBox = document.createElement('div');
+  thumbBox.className = 'w-full';
+  thumbBox.style = aspectStyle(); // keep aspect ratio for thumbnail
+  thumbBox.style.overflow = 'hidden';
+  const img = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
+  thumbBox.appendChild(img);
+  card.appendChild(thumbBox);
+
+  const bar = document.createElement('div');
+  bar.className = 'flex items-center justify-between gap-2 mt-2';
+
+  const badge = document.createElement('span');
+  badge.className = 'badge';
   const dur = fmtDuration(duration);
-  return `
-    <div class="card p-2 rounded-xl">
-      <video src="${url}" poster="${thumb||''}" controls class="w-full aspect-video rounded"></video>
-      <div class="flex items-center justify-between gap-2 mt-2">
-        <span class="badge">Video ${dur ? `· ${dur}` : ""}</span>
-        <button class="btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1" data-copy="${url}">📄 Copy Link</button>
-      </div>
-    </div>`;
+  badge.textContent = `Video${dur ? ' · '+dur : ''}`;
+
+  const right = document.createElement('div');
+  right.className = 'flex items-center gap-2';
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';
+  copyBtn.textContent = '📄 Copy Link';
+  copyBtn.addEventListener('click', ()=> copyText(url));
+
+  const playBtn = document.createElement('button');
+  playBtn.className = 'btn text-sm px-3 py-1';
+  playBtn.textContent = '▶️ 播放';
+  playBtn.addEventListener('click', ()=>{
+    // replace thumb with video (no preload)
+    const vid = document.createElement('video');
+    vid.controls = true;
+    vid.playsInline = true;
+    vid.preload = 'none';
+    vid.src = url;
+    vid.style = aspectStyle(); // keep aspect
+    thumbBox.replaceChildren(vid);
+
+    // change to back-to-thumb
+    playBtn.textContent = '🔙 返回縮圖';
+    playBtn.onclick = ()=>{
+      const img2 = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
+      thumbBox.replaceChildren(img2);
+      playBtn.textContent = '▶️ 播放';
+      // restore click to play again
+      playBtn.onclick = ()=> {
+        const vid2 = document.createElement('video');
+        vid2.controls = true; vid2.playsInline = true; vid2.preload = 'none';
+        vid2.src = url; vid2.style = aspectStyle();
+        thumbBox.replaceChildren(vid2);
+        playBtn.textContent = '🔙 返回縮圖';
+        playBtn.onclick = ()=> {
+          const img3 = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
+          thumbBox.replaceChildren(img3);
+          playBtn.textContent = '▶️ 播放';
+          // re-bind like first time
+          playBtn.onclick = ()=> {
+            const vid3 = document.createElement('video');
+            vid3.controls = true; vid3.playsInline = true; vid3.preload = 'none';
+            vid3.src = url; vid3.style = aspectStyle();
+            thumbBox.replaceChildren(vid3);
+            playBtn.textContent = '🔙 返回縮圖';
+            // and so on...
+          };
+        };
+      };
+    };
+  });
+
+  right.appendChild(copyBtn);
+  right.appendChild(playBtn);
+
+  bar.appendChild(badge);
+  bar.appendChild(right);
+  card.appendChild(bar);
+
+  return card;
 }
 
-function bindCopyButtons(scope=document) {
-  scope.querySelectorAll("button[data-copy]").forEach(b=>{
-    b.addEventListener("click", ()=> copyText(b.getAttribute("data-copy")));
-  });
+function aspectStyle(inner=false) {
+  // inner=true only sets object box, but we will keep same inline for simplicity
+  switch (aspect.value) {
+    case "9:16": return "aspect-ratio: 9 / 16;";
+    case "1:1":  return "aspect-ratio: 1 / 1;";
+    case "16:9":
+    default:     return "aspect-ratio: 16 / 9;";
+  }
 }
 
 /* =======================
@@ -287,15 +423,16 @@ async function searchWikimedia(reset=false) {
   const data = await resp.json();
   const pages = data.query?.pages || {};
   const arr = Object.values(pages);
+
   const frag = document.createElement("div");
   arr.forEach(p=>{
     const url = p.imageinfo?.[0]?.url;
-    if (url) frag.insertAdjacentHTML("beforeend", cardImage({thumb:url, url}));
+    if (url) frag.appendChild(cardImage({thumb:url, url}));
   });
   results.appendChild(frag);
+
   wikiContinue = data.continue || null;
   btnMore.classList.toggle("hidden", !wikiContinue);
-  bindCopyButtons(results);
 }
 
 async function searchPexelsPhotos(key, reset=false) {
@@ -304,15 +441,18 @@ async function searchPexelsPhotos(key, reset=false) {
     results.innerHTML = "";
   }
   const q = buildQuery();
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}`;
+  const orientation = pexelsOrientation();
+  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
   const resp = await fetch(url, { headers: { Authorization: key }});
   const data = await resp.json();
-  const list = (data.photos || []).map(p=>({thumb: p.src?.medium || p.src?.small, url: p.src?.original }));
+  const list = (data.photos || []).map(p=>({
+    thumb: p.src?.medium || p.src?.small,
+    url: p.src?.original
+  }));
   const frag = document.createElement("div");
-  list.forEach(i=> frag.insertAdjacentHTML("beforeend", cardImage(i)));
+  list.forEach(i=> frag.appendChild(cardImage(i)));
   results.appendChild(frag);
-  bindCopyButtons(results);
-  // next page
+
   const hasMore = (data.photos || []).length === PAGE_SIZE;
   pexelsPage += 1;
   btnMore.classList.toggle("hidden", !hasMore);
@@ -324,19 +464,22 @@ async function searchPexelsVideos(key, reset=false) {
     results.innerHTML = "";
   }
   const q = buildQuery();
-  const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}`;
+  const orientation = pexelsOrientation();
+  const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
   const resp = await fetch(url, { headers: { Authorization: key }});
   const data = await resp.json();
   const vids = (data.videos || []).map(v=>{
+    // Pick the largest file for quality; we lazy-load by click so bandwidth is ok on demand.
     const file = (v.video_files||[]).sort((a,b)=> (b.width*b.height)-(a.width*a.height))[0] || v.video_files?.[0];
     const url  = file?.link || v.url;
     const thumb = v.video_pictures?.[0]?.picture || v.image;
     return {thumb, url, duration: v.duration};
   });
+
   const frag = document.createElement("div");
-  vids.forEach(v=> frag.insertAdjacentHTML("beforeend", cardVideo(v)));
+  vids.forEach(v=> frag.appendChild(cardVideo(v)));
   results.appendChild(frag);
-  bindCopyButtons(results);
+
   const hasMore = (data.videos || []).length === PAGE_SIZE;
   pexelsPage += 1;
   btnMore.classList.toggle("hidden", !hasMore);
@@ -353,6 +496,7 @@ modeImages.addEventListener("click", ()=>{
   modeImages.classList.remove("btn-alt"); modeImages.classList.add("bg-blue-600", "text-white");
   modeVideos.classList.add("btn-alt"); modeVideos.classList.remove("bg-blue-600","text-white");
 });
+
 modeVideos.addEventListener("click", ()=>{
   searchMode = "videos";
   modeVideos.classList.remove("btn-alt"); modeVideos.classList.add("bg-blue-600", "text-white");
@@ -373,17 +517,12 @@ btnSearch.addEventListener("click", async ()=>{
           <div class="text-red-600 font-semibold mb-1">需要 Pexels API Key 才能搜尋影片</div>
           <div class="text-sm">請點右上 <b>Settings</b> 貼上你的 Key，或切換到 <span class="badge">Images</span> 模式。</div>
         </div>`;
-        loading.classList.add("hidden");
         return;
       }
       await searchPexelsVideos(key, true);
     } else {
-      // images
-      if (key) {
-        await searchPexelsPhotos(key, true);
-      } else {
-        await searchWikimedia(true);
-      }
+      if (key) await searchPexelsPhotos(key, true);
+      else await searchWikimedia(true);
     }
   } catch (e) {
     console.error(e);
@@ -426,7 +565,8 @@ const btnCopyText = document.getElementById("btnCopyText");
 
 btnGenerate.addEventListener("click", ()=>{
   output.classList.remove("hidden");
-  const q = buildQuery();
+  const q = [country.value, city.value, theme.value, keywords.value.trim()]
+    .filter(x=>x && x !== "Any").join(" ");
   function makeText(mode){
     if(mode==='cinematic')return `🎬 *Cinematic Title*\nEN: Journey Through ${q}\nZH: ${q} 的電影感畫面\n\nDescription:\nEN: A cinematic travel montage showcasing ${q} — natural light, soft motion, emotional storytelling.\nZH: 一段以 ${q} 為主題的電影感旅行剪輯，柔光慢景，情緒敘事。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #cinematic #travel #shortfilm`;
     if(mode==='seo')return `🧭 *SEO Title*\nEN: Discover ${q} in 4K – Travel Highlights\nZH: 探索 ${q} 的旅遊亮點 4K 影片\n\nDescription:\nEN: Explore the best of ${q}, including landmarks, food, and local culture.\nZH: 精選 ${q} 的景點、美食與人文，給旅人的快速導覽。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #travelguide #explore #4k`;
@@ -470,3 +610,4 @@ if ("serviceWorker" in navigator) {
 </script>
 </body>
 </html>
+  
