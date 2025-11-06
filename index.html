@@ -1,34 +1,45 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI 影片搜尋器</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#3b82f6">
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#3b82f6" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ZIP & Save -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <style>
-    body { background-color: #f9fafc; color: #1f2937; font-family: 'Inter', system-ui, -apple-system, "Noto Sans TC", "PingFang TC", sans-serif; }
-    header { border-bottom: 3px solid #3b82f6; background: white; position: sticky; top: 0; z-index: 20; }
-    .card { background: white; border: 1px solid #cfe1ff; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-    .btn { background: #3b82f6; color: white; border-radius: 0.6rem; padding: 0.55rem 1rem; font-weight: 600; }
-    .btn:hover { background: #2563eb; }
-    .btn-alt { background: #e5e7eb; color: #1f2937; }
-    select, input { border: 1px solid #93c5fd; border-radius: 0.6rem; padding: 0.5rem 0.7rem; }
-    #results img, #results video { border-radius: 0.6rem; }
-    .badge { font-size: 12px; padding: 2px 8px; border: 1px solid #93c5fd; border-radius: 999px; color: #1f2937; background: #eef5ff; }
-    .ghost { opacity: .7; }
-    .lazy { opacity: 0; transition: opacity .3s; }
-    .lazy.loaded { opacity: 1; }
+    body{background:#f9fafc;color:#1f2937;font-family:'Inter',system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif}
+    header{background:#fff;border-bottom:3px solid #3b82f6;position:sticky;top:0;z-index:20}
+    .card{background:#fff;border:1px solid #cfe1ff;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+    .btn{background:#3b82f6;color:#fff;border-radius:.6rem;padding:.55rem 1rem;font-weight:600}
+    .btn:hover{background:#2563eb}
+    .btn-alt{background:#e5e7eb;color:#1f2937}
+    select,input{border:1px solid #93c5fd;border-radius:.6rem;padding:.5rem .7rem}
+    #results img,#results video{border-radius:.6rem}
+    .badge{font-size:12px;padding:2px 8px;border:1px solid #93c5fd;border-radius:999px;background:#eef5ff}
+    .lazy{opacity:0;transition:opacity .3s}.lazy.loaded{opacity:1}
+    /* Mode tabs: small text-only */
+    .tabs .tab{flex:1;border:1px solid #93c5fd;border-radius:.5rem;padding:.35rem .6rem;font-weight:700}
+    .tabs .tab.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+    .tabs .tab.inactive{background:#fff;color:#1f2937}
+    /* Bulk bar */
+    #bulkBar{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(255,255,255,.95);border-top:1px solid #cfe1ff;backdrop-filter:blur(6px)}
+    .corner-select{position:absolute;top:.5rem;right:.5rem}
+    .select-on{background:#10b981!important;color:#fff!important}
+    .select-btn{background:rgba(255,255,255,.92);border:1px solid #93c5fd;color:#1f2937;padding:.25rem .5rem;border-radius:.5rem;font-weight:700}
   </style>
 </head>
 <body>
 <header class="px-4 py-3 flex justify-between items-center">
-  <div class="text-lg md:text-xl font-bold text-blue-700">📸 AI 影片搜尋器</div>
+  <div class="text-lg md:text-xl font-bold text-blue-700">AI 影片搜尋器</div>
   <button id="btnSettings" class="text-blue-600 font-semibold">⚙️ Settings</button>
 </header>
 
 <main class="max-w-6xl mx-auto p-4 space-y-4">
+  <!-- 搜尋設定 -->
   <section class="card p-4 rounded-xl">
     <h2 class="text-lg font-semibold mb-2 text-blue-700">搜尋設定 / Search Settings</h2>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -38,54 +49,79 @@
         <select id="place" class="w-full">
           <option>Any</option><option>Landmark</option><option>Beach</option>
           <option>Park</option><option>Temple</option><option>Café</option><option>Street</option>
-        </select></div>
+        </select>
+      </div>
       <div><label class="text-sm">Theme 主題</label><select id="theme" class="w-full"></select></div>
+
       <div><label class="text-sm">Aspect Ratio 比例</label>
         <select id="aspect" class="w-full">
           <option selected>9:16</option><option>16:9</option><option>1:1</option>
         </select>
       </div>
-      <div class="lg:col-span-2"><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat"></div>
-      <div><label class="text-sm">Mode 模式</label>
-        <div class="flex gap-2">
-          <button id="modeImages" class="btn bg-blue-600 flex-1">📷 Images</button>
-          <button id="modeVideos" class="btn btn-alt flex-1 text-blue-700 border border-blue-300">🎥 Videos</button>
+
+      <div><label class="text-sm">影片長度（分鐘）</label>
+        <select id="duration" class="w-full">
+          <option value="any" selected>不限</option>
+          <option value="le1">≤ 1</option>
+          <option value="1-3">1–3</option>
+          <option value="3-5">3–5</option>
+          <option value="ge5">≥ 5</option>
+        </select>
+      </div>
+
+      <div class="lg:col-span-2"><label class="text-sm">Keywords 關鍵字</label><input id="keywords" class="w-full" placeholder="sunset, skyline, cat" /></div>
+
+      <div>
+        <label class="text-sm">Mode 模式</label>
+        <div class="tabs flex gap-2">
+          <button id="modeImages" class="tab active">Images</button>
+          <button id="modeVideos" class="tab inactive">Videos</button>
         </div>
       </div>
+
       <div class="flex items-end gap-2">
-        <button id="btnSearch" class="btn">🔍 Search</button>
+        <button id="btnSearch" class="btn">Search</button>
         <button id="btnClear" class="btn btn-alt">Clear</button>
-        <button id="btnGenerate" class="btn bg-green-500">✨ Generate Titles</button>
+        <button id="btnGenerate" class="btn bg-green-500">Generate Titles</button>
       </div>
     </div>
   </section>
 
+  <!-- 結果 -->
   <div id="loading" class="text-center text-blue-600 hidden">⏳ Loading...</div>
   <section id="results" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"></section>
-  <div class="flex justify-center">
-    <button id="btnMore" class="btn hidden">Load More</button>
-  </div>
+  <div class="flex justify-center"><button id="btnMore" class="btn hidden">Load More</button></div>
 
-  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 bg-black text-white px-3 py-2 rounded-lg text-sm hidden">已複製連結</div>
+  <!-- Toast -->
+  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-20 bg-black text-white px-3 py-2 rounded-lg text-sm hidden z-40">已複製連結</div>
 
+  <!-- 文案生成 -->
   <div id="output" class="card p-4 rounded-xl hidden">
     <h3 class="text-blue-700 font-semibold mb-2">🎬 AI 影片標題與描述生成 / Title & Description</h3>
     <div class="flex gap-2 mb-2 flex-wrap">
       <button class="btn bg-blue-500" data-mode="cinematic">Cinematic</button>
       <button class="btn bg-purple-500" data-mode="seo">SEO</button>
       <button class="btn bg-pink-500" data-mode="clickbait">Clickbait</button>
-      <button id="btnCopyText" class="btn btn-alt text-blue-700 border border-blue-300">📄 Copy Text</button>
+      <button id="btnCopyText" class="btn btn-alt text-blue-700 border border-blue-300">Copy Text</button>
     </div>
     <pre id="textOutput" class="whitespace-pre-wrap text-sm"></pre>
   </div>
 </main>
 
-<!-- Settings Modal -->
+<!-- 批次下載列 -->
+<div id="bulkBar" class="hidden px-4 py-3">
+  <div class="max-w-6xl mx-auto flex items-center justify-between gap-3">
+    <div class="text-sm"><span class="badge">已選取</span> <b id="selCount">0</b> 項</div>
+    <button id="btnDownload" class="btn bg-emerald-600">📦 下載已選取</button>
+  </div>
+</div>
+
+<!-- Settings -->
 <div id="settingsModal" class="hidden fixed inset-0 bg-black/50 flex justify-center items-center z-50">
   <div class="bg-white p-5 rounded-xl w-[92vw] max-w-md">
     <h3 class="text-blue-700 font-semibold mb-2">⚙️ API 設定</h3>
-    <p class="text-sm mb-2">輸入你的 Pexels API Key（選填，用於圖片與影片搜尋）：</p>
-    <input id="pexelsKey" type="text" placeholder="Pexels API Key" class="w-full border p-2 mb-3 rounded">
+    <p class="text-sm mb-2">輸入你的 Pexels API Key（選填，用於圖片與影片）：</p>
+    <input id="pexelsKey" type="text" placeholder="Pexels API Key" class="w-full border p-2 mb-3 rounded" />
     <div class="flex justify-end gap-2">
       <button id="btnSaveKey" class="btn">Save</button>
       <button id="btnCloseSettings" class="btn btn-alt">Close</button>
@@ -94,520 +130,207 @@
 </div>
 
 <script>
-/* =======================
-   Data (Countries / Cities / Themes / Place mapping)
-======================= */
-const DATA = {
-  "Any": ["Any"],
-
-  // United States + Asia focus
-  "United States": [
-    "Any",
-    "New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami",
-    "Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver",
-    "Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans"
-  ],
-  "Japan": [
-    "Any","Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Hiroshima","Fukuoka","Okinawa","Nara"
-  ],
-  "Taiwan": [
-    "Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"
-  ],
-  "South Korea": [
-    "Any","Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"
-  ],
-  "Thailand": [
-    "Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin","Chiang Rai"
-  ],
-  "Indonesia": [
-    "Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok","Makassar"
-  ],
-  "Vietnam": [
-    "Any","Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang","Hue","Phu Quoc"
-  ],
-  "Philippines": [
-    "Any","Manila","Quezon City","Cebu","Davao","Baguio","Boracay","Palawan"
-  ],
-  "Malaysia": [
-    "Any","Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Johor Bahru","Langkawi","Ipoh"
-  ],
-  "Singapore": [
-    "Any","Downtown","Marina Bay","Sentosa","Chinatown","Little India","Orchard"
-  ]
+/* ========= Data ========= */
+const DATA={
+  "Any":["Any"],
+  "United States":["Any","New York","Los Angeles","San Francisco","Chicago","Seattle","Las Vegas","Miami","Washington D.C.","Boston","Philadelphia","Houston","Dallas","Austin","Denver","Portland","San Diego","Phoenix","Orlando","Atlanta","Honolulu","New Orleans"],
+  "Japan":["Any","Tokyo","Kyoto","Osaka","Yokohama","Sapporo","Nagoya","Kobe","Hiroshima","Fukuoka","Okinawa","Nara"],
+  "Taiwan":["Any","Taipei","New Taipei","Taoyuan","Taichung","Tainan","Kaohsiung","Hualien","Yilan","Taitung","Chiayi"],
+  "South Korea":["Any","Seoul","Busan","Incheon","Daegu","Daejeon","Gwangju","Suwon","Jeju"],
+  "Thailand":["Any","Bangkok","Chiang Mai","Phuket","Pattaya","Krabi","Ayutthaya","Hua Hin","Chiang Rai"],
+  "Indonesia":["Any","Jakarta","Bali","Bandung","Yogyakarta","Surabaya","Medan","Lombok","Makassar"],
+  "Vietnam":["Any","Ho Chi Minh City","Hanoi","Da Nang","Hoi An","Nha Trang","Hue","Phu Quoc"],
+  "Philippines":["Any","Manila","Quezon City","Cebu","Davao","Baguio","Boracay","Palawan"],
+  "Malaysia":["Any","Kuala Lumpur","George Town","Malacca","Kota Kinabalu","Johor Bahru","Langkawi","Ipoh"],
+  "Singapore":["Any","Downtown","Marina Bay","Sentosa","Chinatown","Little India","Orchard"]
 };
+const THEMES=["Any","Animals","Nature","Architecture","Food","People","Night View","Beach & Ocean","City Streets","Countryside","Mountains","Festivals","Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"];
+const PLACE_MAP={"Any":"","Landmark":"landmark","Beach":"beach coast ocean","Park":"park garden","Temple":"temple shrine","Café":"cafe coffee","Street":"street city"};
 
-const THEMES = [
-  "Any","Animals","Nature","Architecture","Food","People","Night View",
-  "Beach & Ocean","City Streets","Countryside","Mountains","Festivals",
-  "Sports","Transportation","Café / Lifestyle","Technology / Modern","Sunrise / Sunset"
-];
+/* ========= Elements & State ========= */
+const country=document.getElementById("country"),city=document.getElementById("city"),place=document.getElementById("place"),theme=document.getElementById("theme"),aspect=document.getElementById("aspect"),duration=document.getElementById("duration"),keywords=document.getElementById("keywords");
+const modeImages=document.getElementById("modeImages"),modeVideos=document.getElementById("modeVideos");
+const btnSearch=document.getElementById("btnSearch"),btnClear=document.getElementById("btnClear"),btnMore=document.getElementById("btnMore");
+const loading=document.getElementById("loading"),results=document.getElementById("results"),toast=document.getElementById("toast");
+const bulkBar=document.getElementById("bulkBar"),selCountEl=document.getElementById("selCount"),btnDownload=document.getElementById("btnDownload");
+let searchMode="images", PAGE_SIZE=12, wikiContinue=null, pexelsPage=1;
+let selectedItems=[];
 
-// Optional query enrichment for Place
-const PLACE_MAP = {
-  "Any": "", "Landmark": "landmark", "Beach": "beach coast ocean",
-  "Park": "park garden", "Temple": "temple shrine", "Café": "cafe coffee",
-  "Street": "street city"
-};
+/* ========= Init Selects ========= */
+for(const c of Object.keys(DATA)){const o=document.createElement("option");o.textContent=c;country.appendChild(o);}
+for(const t of THEMES){const o=document.createElement("option");o.textContent=t;theme.appendChild(o);}
+country.addEventListener("change",()=>{city.innerHTML='';(DATA[country.value]||["Any"]).forEach(x=>{const o=document.createElement("option");o.textContent=x;city.appendChild(o);});});
+country.dispatchEvent(new Event("change"));
 
-/* =======================
-   Elements & State
-======================= */
-const country = document.getElementById("country");
-const city = document.getElementById("city");
-const place = document.getElementById("place");
-const theme = document.getElementById("theme");
-const aspect = document.getElementById("aspect");
-const keywords = document.getElementById("keywords");
-
-const results = document.getElementById("results");
-const loading = document.getElementById("loading");
-const btnMore = document.getElementById("btnMore");
-const toast = document.getElementById("toast");
-
-const modeImages = document.getElementById("modeImages");
-const modeVideos = document.getElementById("modeVideos");
-let searchMode = "images";          // "images" | "videos"
-const PAGE_SIZE = 12;
-
-// Wikimedia pagination
-let wikiContinue = null;
-// Pexels pagination
-let pexelsPage = 1;
-
-/* =======================
-   Init Selects
-======================= */
-for (const c of Object.keys(DATA)) {
-  const opt = document.createElement("option");
-  opt.textContent = c;
-  country.appendChild(opt);
+/* ========= Helpers ========= */
+function buildQuery(){
+  const parts=[];
+  if(country.value!=="Any") parts.push(country.value);
+  if(city.value!=="Any") parts.push(city.value);
+  const pm=PLACE_MAP[place.value]||""; if(pm) parts.push(pm);
+  if(theme.value!=="Any") parts.push(theme.value);
+  if(keywords.value.trim()) parts.push(keywords.value.trim());
+  if(aspect.value==="9:16") parts.push("portrait"); else if(aspect.value==="16:9") parts.push("landscape"); else if(aspect.value==="1:1") parts.push("square");
+  return parts.join(" ").trim()||"travel";
 }
-for (const t of THEMES) {
-  const opt = document.createElement("option");
-  opt.textContent = t;
-  theme.appendChild(opt);
-}
-function populateCities() {
-  city.innerHTML = "";
-  (DATA[country.value] || ["Any"]).forEach(x => {
-    const o = document.createElement("option");
-    o.textContent = x;
-    city.appendChild(o);
-  });
-}
-country.addEventListener("change", populateCities);
-populateCities();
+function pexelsOrientation(){return aspect.value==="9:16"?"portrait":aspect.value==="16:9"?"landscape":"square";}
+function fmtDuration(sec){if(sec===undefined||sec===null)return"";const m=Math.floor(sec/60),s=Math.round(sec%60);return m<=0?`${s}s`:`${m}m ${s}s`;}
+function showToast(msg="已複製連結"){toast.textContent=msg;toast.classList.remove("hidden");setTimeout(()=>toast.classList.add("hidden"),1200);}
+function updateBulkBar(){selCountEl.textContent=selectedItems.length;bulkBar.classList.toggle("hidden",selectedItems.length===0);}
+function toggleSelect(url,type,btn){const i=selectedItems.findIndex(x=>x.url===url);if(i>=0){selectedItems.splice(i,1);btn.classList.remove("select-on");btn.textContent="選取";}else{selectedItems.push({url,type});btn.classList.add("select-on");btn.textContent="已選";}updateBulkBar();}
+function aspectStyle(){switch(aspect.value){case "9:16":return "aspect-ratio: 9 / 16;";case "1:1":return "aspect-ratio: 1 / 1;";default:return "aspect-ratio: 16 / 9;"}}
 
-/* =======================
-   Helpers
-======================= */
-function buildQuery() {
-  const parts = [];
-  if (country.value !== "Any") parts.push(country.value);
-  if (city.value !== "Any") parts.push(city.value);
-  const pm = PLACE_MAP[place.value] || "";
-  if (pm) parts.push(pm);
-  if (theme.value !== "Any") parts.push(theme.value);
-  if (keywords.value.trim()) parts.push(keywords.value.trim());
+/* Lazy load */
+const io='IntersectionObserver' in window?new IntersectionObserver((ents)=>{ents.forEach(en=>{if(en.isIntersecting){const el=en.target;const src=el.getAttribute('data-src');if(src){el.src=src;el.onload=()=>el.classList.add('loaded');io.unobserve(el);}}})},{rootMargin:'200px'}):null;
+function makeLazyImg(src,alt,style=''){const img=document.createElement('img');img.setAttribute('data-src',src);img.alt=alt||'';img.className='w-full object-cover lazy';if(style)img.setAttribute('style',style);if(io)io.observe(img);else img.src=src;img.onload=()=>img.classList.add('loaded');return img;}
 
-  // For Wikimedia, append aspect hint to help relevance
-  const a = aspect.value;
-  if (a === "9:16") parts.push("portrait");
-  else if (a === "16:9") parts.push("landscape");
-  else if (a === "1:1") parts.push("square");
-
-  return parts.join(" ").trim() || "travel";
-}
-
-// Pexels orientation mapping
-function pexelsOrientation() {
-  switch (aspect.value) {
-    case "9:16": return "portrait";
-    case "16:9": return "landscape";
-    case "1:1":  return "square";
-    default:     return "portrait";
-  }
-}
-
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.textContent = "已複製連結";
-    toast.classList.remove("hidden");
-    setTimeout(()=>toast.classList.add("hidden"), 1200);
-  } catch(e) {
-    alert(text); // fallback
-  }
-}
-
-function fmtDuration(sec) {
-  if (sec === undefined || sec === null) return "";
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  if (m <= 0) return `${s}s`;
-  return `${m}m ${s}s`;
-}
-
-// Lazy loader for images
-const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries)=>{
-  entries.forEach(entry=>{
-    if (entry.isIntersecting) {
-      const el = entry.target;
-      const src = el.getAttribute('data-src');
-      if (src) {
-        el.src = src;
-        el.onload = ()=> el.classList.add('loaded');
-        io.unobserve(el);
-      }
-    }
-  })
-}, {rootMargin: '200px'}) : null;
-
-function makeLazyImg(src, alt, style='') {
-  const img = document.createElement('img');
-  img.setAttribute('data-src', src);
-  img.alt = alt || '';
-  img.className = 'w-full object-cover lazy';
-  if (style) img.setAttribute('style', style);
-  if (io) io.observe(img); else img.src = src;
-  img.onload = ()=> img.classList.add('loaded');
-  return img;
-}
-
-/* =======================
-   Card Builders (Image / Video-as-Thumbnail)
-======================= */
-function cardImage({thumb, url, title="Open image"}) {
-  const card = document.createElement('div');
-  card.className = 'card p-2 rounded-xl';
-
-  const a = document.createElement('a');
-  a.href = url; a.target = '_blank'; a.rel = 'noopener';
-  const img = makeLazyImg(thumb, title, aspectStyle());
-  a.appendChild(img);
-
-  const bar = document.createElement('div');
-  bar.className = 'flex items-center justify-between gap-2 mt-2';
-
-  const badge = document.createElement('span');
-  badge.className = 'badge';
-  badge.textContent = 'Image';
-
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';
-  btn.textContent = '📄 Copy Link';
-  btn.addEventListener('click', ()=> copyText(url));
-
-  bar.appendChild(badge); bar.appendChild(btn);
-  card.appendChild(a); card.appendChild(bar);
-  return card;
-}
-
-// Video: show clean thumbnail; click -> replace with <video controls>; show "返回縮圖"
-function cardVideo({thumb, url, duration}) {
-  const card = document.createElement('div');
-  card.className = 'card p-2 rounded-xl';
-
-  const thumbBox = document.createElement('div');
-  thumbBox.className = 'w-full';
-  thumbBox.style = aspectStyle(); // keep aspect ratio for thumbnail
-  thumbBox.style.overflow = 'hidden';
-  const img = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
-  thumbBox.appendChild(img);
-  card.appendChild(thumbBox);
-
-  const bar = document.createElement('div');
-  bar.className = 'flex items-center justify-between gap-2 mt-2';
-
-  const badge = document.createElement('span');
-  badge.className = 'badge';
-  const dur = fmtDuration(duration);
-  badge.textContent = `Video${dur ? ' · '+dur : ''}`;
-
-  const right = document.createElement('div');
-  right.className = 'flex items-center gap-2';
-
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';
-  copyBtn.textContent = '📄 Copy Link';
-  copyBtn.addEventListener('click', ()=> copyText(url));
-
-  const playBtn = document.createElement('button');
-  playBtn.className = 'btn text-sm px-3 py-1';
-  playBtn.textContent = '▶️ 播放';
-  playBtn.addEventListener('click', ()=>{
-    // replace thumb with video (no preload)
-    const vid = document.createElement('video');
-    vid.controls = true;
-    vid.playsInline = true;
-    vid.preload = 'none';
-    vid.src = url;
-    vid.style = aspectStyle(); // keep aspect
-    thumbBox.replaceChildren(vid);
-
-    // change to back-to-thumb
-    playBtn.textContent = '🔙 返回縮圖';
-    playBtn.onclick = ()=>{
-      const img2 = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
-      thumbBox.replaceChildren(img2);
-      playBtn.textContent = '▶️ 播放';
-      // restore click to play again
-      playBtn.onclick = ()=> {
-        const vid2 = document.createElement('video');
-        vid2.controls = true; vid2.playsInline = true; vid2.preload = 'none';
-        vid2.src = url; vid2.style = aspectStyle();
-        thumbBox.replaceChildren(vid2);
-        playBtn.textContent = '🔙 返回縮圖';
-        playBtn.onclick = ()=> {
-          const img3 = makeLazyImg(thumb || '', 'video', 'width:100%;height:100%;object-fit:cover;'+aspectStyle(true));
-          thumbBox.replaceChildren(img3);
-          playBtn.textContent = '▶️ 播放';
-          // re-bind like first time
-          playBtn.onclick = ()=> {
-            const vid3 = document.createElement('video');
-            vid3.controls = true; vid3.playsInline = true; vid3.preload = 'none';
-            vid3.src = url; vid3.style = aspectStyle();
-            thumbBox.replaceChildren(vid3);
-            playBtn.textContent = '🔙 返回縮圖';
-            // and so on...
-          };
-        };
-      };
-    };
-  });
-
+/* ========= Cards ========= */
+function cardImage({thumb,url}){
+  const card=document.createElement('div');card.className='card p-2 rounded-xl relative';
+  const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';
+  const img=makeLazyImg(thumb,'image',aspectStyle());a.appendChild(img);
+  const bar=document.createElement('div');bar.className='flex items-center justify-between gap-2 mt-2';
+  const badge=document.createElement('span');badge.className='badge';badge.textContent='Image';
+  const right=document.createElement('div');right.className='flex items-center gap-2';
+  const copyBtn=document.createElement('button');copyBtn.className='btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';copyBtn.textContent='Copy Link';copyBtn.onclick=()=>{navigator.clipboard.writeText(url).then(()=>showToast()).catch(()=>alert(url));};
   right.appendChild(copyBtn);
-  right.appendChild(playBtn);
-
-  bar.appendChild(badge);
-  bar.appendChild(right);
-  card.appendChild(bar);
-
-  return card;
+  bar.appendChild(badge);bar.appendChild(right);
+  const sel=document.createElement('button');sel.className='select-btn corner-select';sel.textContent='選取';sel.onclick=()=>toggleSelect(url,'image',sel);
+  card.appendChild(sel);card.appendChild(a);card.appendChild(bar);return card;
+}
+function cardVideo({thumb,url,duration}){
+  const card=document.createElement('div');card.className='card p-2 rounded-xl relative';
+  const box=document.createElement('div');box.className='w-full';box.style=aspectStyle();box.style.overflow='hidden';
+  const img=makeLazyImg(thumb||'','video','width:100%;height:100%;object-fit:cover;'+aspectStyle());box.appendChild(img);
+  const bar=document.createElement('div');bar.className='flex items-center justify-between gap-2 mt-2';
+  const badge=document.createElement('span');badge.className='badge';badge.textContent=`Video${duration?(' · '+fmtDuration(duration)):''}`;
+  const right=document.createElement('div');right.className='flex items-center gap-2';
+  const copyBtn=document.createElement('button');copyBtn.className='btn btn-alt text-blue-700 border border-blue-300 text-sm px-3 py-1';copyBtn.textContent='Copy Link';copyBtn.onclick=()=>{navigator.clipboard.writeText(url).then(()=>showToast()).catch(()=>alert(url));};
+  const playBtn=document.createElement('button');playBtn.className='btn text-sm px-3 py-1';playBtn.textContent='播放';
+  playBtn.onclick=()=>{const v=document.createElement('video');v.controls=true;v.playsInline=true;v.preload='none';v.src=url;v.style=aspectStyle();box.replaceChildren(v);playBtn.textContent='返回縮圖';playBtn.onclick=()=>{const i2=makeLazyImg(thumb||'','video','width:100%;height:100%;object-fit:cover;'+aspectStyle());box.replaceChildren(i2);playBtn.textContent='播放';};};
+  right.appendChild(copyBtn);right.appendChild(playBtn);
+  bar.appendChild(badge);bar.appendChild(right);
+  const sel=document.createElement('button');sel.className='select-btn corner-select';sel.textContent='選取';sel.onclick=()=>toggleSelect(url,'video',sel);
+  card.appendChild(sel);card.appendChild(box);card.appendChild(bar);return card;
 }
 
-function aspectStyle(inner=false) {
-  // inner=true only sets object box, but we will keep same inline for simplicity
-  switch (aspect.value) {
-    case "9:16": return "aspect-ratio: 9 / 16;";
-    case "1:1":  return "aspect-ratio: 1 / 1;";
-    case "16:9":
-    default:     return "aspect-ratio: 16 / 9;";
-  }
+/* ========= Search ========= */
+let PAGE=12;
+function pexelsOrientation(){return aspect.value==="9:16"?"portrait":aspect.value==="16:9"?"landscape":"square";}
+function durationFilter(sec){
+  const v=duration.value;
+  if(v==="any") return true;
+  if(v==="le1") return sec<=60;
+  if(v==="1-3") return sec>60 && sec<=180;
+  if(v==="3-5") return sec>180 && sec<=300;
+  if(v==="ge5") return sec>300;
+  return true;
 }
-
-/* =======================
-   Search Implementations
-======================= */
-async function searchWikimedia(reset=false) {
-  if (reset) {
-    wikiContinue = null;
-    results.innerHTML = "";
-  }
-  const q = buildQuery();
-  const params = new URLSearchParams({
-    action: "query",
-    format: "json",
-    origin: "*",
-    generator: "search",
-    gsrsearch: q,
-    gsrlimit: PAGE_SIZE.toString(),
-    prop: "imageinfo",
-    iiprop: "url"
-  });
-  if (wikiContinue) {
-    for (const [k, v] of Object.entries(wikiContinue)) params.set(k, v);
-  }
-  const api = "https://commons.wikimedia.org/w/api.php?" + params.toString();
-  const resp = await fetch(api);
-  const data = await resp.json();
-  const pages = data.query?.pages || {};
-  const arr = Object.values(pages);
-
-  const frag = document.createElement("div");
-  arr.forEach(p=>{
-    const url = p.imageinfo?.[0]?.url;
-    if (url) frag.appendChild(cardImage({thumb:url, url}));
-  });
+async function searchWikimedia(reset=false){
+  if(reset){wikiContinue=null;results.innerHTML="";selectedItems=[];updateBulkBar();}
+  const q=buildQuery();
+  const params=new URLSearchParams({action:"query",format:"json",origin:"*",generator:"search",gsrsearch:q,gsrlimit:String(PAGE_SIZE),prop:"imageinfo",iiprop:"url"});
+  if(wikiContinue){for(const [k,v] of Object.entries(wikiContinue)) params.set(k,v);}
+  const api="https://commons.wikimedia.org/w/api.php?"+params.toString();
+  const r=await fetch(api);const j=await r.json();
+  const arr=Object.values(j.query?.pages||{});
+  const frag=document.createElement("div");
+  arr.forEach(p=>{const url=p.imageinfo?.[0]?.url;if(url) frag.appendChild(cardImage({thumb:url,url}));});
   results.appendChild(frag);
-
-  wikiContinue = data.continue || null;
-  btnMore.classList.toggle("hidden", !wikiContinue);
+  wikiContinue=j.continue||null;btnMore.classList.toggle("hidden",!wikiContinue);
 }
-
-async function searchPexelsPhotos(key, reset=false) {
-  if (reset) {
-    pexelsPage = 1;
-    results.innerHTML = "";
-  }
-  const q = buildQuery();
-  const orientation = pexelsOrientation();
-  const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
-  const resp = await fetch(url, { headers: { Authorization: key }});
-  const data = await resp.json();
-  const list = (data.photos || []).map(p=>({
-    thumb: p.src?.medium || p.src?.small,
-    url: p.src?.original
-  }));
-  const frag = document.createElement("div");
-  list.forEach(i=> frag.appendChild(cardImage(i)));
-  results.appendChild(frag);
-
-  const hasMore = (data.photos || []).length === PAGE_SIZE;
-  pexelsPage += 1;
-  btnMore.classList.toggle("hidden", !hasMore);
+async function searchPexelsPhotos(key,reset=false){
+  if(reset){pexelsPage=1;results.innerHTML="";selectedItems=[];updateBulkBar();}
+  const q=buildQuery();const orientation=pexelsOrientation();
+  const url=`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
+  const r=await fetch(url,{headers:{Authorization:key}});const j=await r.json();
+  const list=(j.photos||[]).map(p=>({thumb:p.src?.medium||p.src?.small,url:p.src?.original}));
+  const frag=document.createElement("div");list.forEach(i=>frag.appendChild(cardImage(i)));results.appendChild(frag);
+  const more=(j.photos||[]).length===PAGE_SIZE;pexelsPage+=1;btnMore.classList.toggle("hidden",!more);
 }
-
-async function searchPexelsVideos(key, reset=false) {
-  if (reset) {
-    pexelsPage = 1;
-    results.innerHTML = "";
-  }
-  const q = buildQuery();
-  const orientation = pexelsOrientation();
-  const url = `https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
-  const resp = await fetch(url, { headers: { Authorization: key }});
-  const data = await resp.json();
-  const vids = (data.videos || []).map(v=>{
-    // Pick the largest file for quality; we lazy-load by click so bandwidth is ok on demand.
-    const file = (v.video_files||[]).sort((a,b)=> (b.width*b.height)-(a.width*a.height))[0] || v.video_files?.[0];
-    const url  = file?.link || v.url;
-    const thumb = v.video_pictures?.[0]?.picture || v.image;
-    return {thumb, url, duration: v.duration};
+async function searchPexelsVideos(key,reset=false){
+  if(reset){pexelsPage=1;results.innerHTML="";selectedItems=[];updateBulkBar();}
+  const q=buildQuery();const orientation=pexelsOrientation();
+  const url=`https://api.pexels.com/videos/search?query=${encodeURIComponent(q)}&per_page=${PAGE_SIZE}&page=${pexelsPage}&orientation=${orientation}`;
+  const r=await fetch(url,{headers:{Authorization:key}});const j=await r.json();
+  const vids=(j.videos||[]).filter(v=>durationFilter(v.duration)).map(v=>{
+    const f=(v.video_files||[]).sort((a,b)=>(b.width*b.height)-(a.width*a.height))[0]||v.video_files?.[0];
+    const url=f?.link||v.url;const thumb=v.video_pictures?.[0]?.picture||v.image;
+    return {thumb,url,duration:v.duration};
   });
-
-  const frag = document.createElement("div");
-  vids.forEach(v=> frag.appendChild(cardVideo(v)));
-  results.appendChild(frag);
-
-  const hasMore = (data.videos || []).length === PAGE_SIZE;
-  pexelsPage += 1;
-  btnMore.classList.toggle("hidden", !hasMore);
+  const frag=document.createElement("div");vids.forEach(v=>frag.appendChild(cardVideo(v)));results.appendChild(frag);
+  const more=(j.videos||[]).length===PAGE_SIZE;pexelsPage+=1;btnMore.classList.toggle("hidden",!more);
 }
 
-/* =======================
-   UI Events
-======================= */
-const btnSearch = document.getElementById("btnSearch");
-const btnClear  = document.getElementById("btnClear");
+/* ========= Events ========= */
+modeImages.onclick=()=>{searchMode="images";modeImages.classList.add('active');modeImages.classList.remove('inactive');modeVideos.classList.add('inactive');modeVideos.classList.remove('active');};
+modeVideos.onclick=()=>{searchMode="videos";modeVideos.classList.add('active');modeVideos.classList.remove('inactive');modeImages.classList.add('inactive');modeImages.classList.remove('active');};
 
-modeImages.addEventListener("click", ()=>{
-  searchMode = "images";
-  modeImages.classList.remove("btn-alt"); modeImages.classList.add("bg-blue-600", "text-white");
-  modeVideos.classList.add("btn-alt"); modeVideos.classList.remove("bg-blue-600","text-white");
-});
-
-modeVideos.addEventListener("click", ()=>{
-  searchMode = "videos";
-  modeVideos.classList.remove("btn-alt"); modeVideos.classList.add("bg-blue-600", "text-white");
-  modeImages.classList.add("btn-alt"); modeImages.classList.remove("bg-blue-600","text-white");
-});
-
-btnSearch.addEventListener("click", async ()=>{
-  results.innerHTML = "";
-  btnMore.classList.add("hidden");
-  wikiContinue = null; pexelsPage = 1;
-  loading.classList.remove("hidden");
-  const key = localStorage.getItem("pexelsKey") || "";
-
-  try {
-    if (searchMode === "videos") {
-      if (!key) {
-        results.innerHTML = `<div class="card p-4 rounded-xl">
-          <div class="text-red-600 font-semibold mb-1">需要 Pexels API Key 才能搜尋影片</div>
-          <div class="text-sm">請點右上 <b>Settings</b> 貼上你的 Key，或切換到 <span class="badge">Images</span> 模式。</div>
-        </div>`;
-        return;
-      }
-      await searchPexelsVideos(key, true);
-    } else {
-      if (key) await searchPexelsPhotos(key, true);
-      else await searchWikimedia(true);
+btnSearch.onclick=async()=>{
+  results.innerHTML="";btnMore.classList.add("hidden");wikiContinue=null;pexelsPage=1;loading.classList.remove("hidden");selectedItems=[];updateBulkBar();
+  const key=localStorage.getItem("pexelsKey")||"";
+  try{
+    if(searchMode==="videos"){
+      if(!key){results.innerHTML=`<div class="card p-4 rounded-xl"><div class="text-sm">需要 Pexels API Key 才能搜尋影片。請點右上 <b>Settings</b> 貼上 Key，或切換到 <span class="badge">Images</span> 模式。</div></div>`;}
+      else{await searchPexelsVideos(key,true);}
+    }else{
+      if(key) await searchPexelsPhotos(key,true); else await searchWikimedia(true);
     }
-  } catch (e) {
-    console.error(e);
-    results.innerHTML = `<p class="text-red-500">❌ 搜尋失敗，請稍後再試</p>`;
-  } finally {
-    loading.classList.add("hidden");
-  }
-});
-
-btnMore.addEventListener("click", async ()=>{
+  }catch(e){console.error(e);results.innerHTML='<p class="text-red-500">❌ 搜尋失敗，請稍後再試</p>';}
+  finally{loading.classList.add("hidden");}
+};
+btnMore.onclick=async()=>{
   loading.classList.remove("hidden");
-  const key = localStorage.getItem("pexelsKey") || "";
-  try {
-    if (searchMode === "videos") {
-      await searchPexelsVideos(key, false);
-    } else {
-      if (key) await searchPexelsPhotos(key, false);
-      else await searchWikimedia(false);
-    }
-  } catch(e) {
-    console.error(e);
-  } finally {
-    loading.classList.add("hidden");
-  }
-});
+  const key=localStorage.getItem("pexelsKey")||"";
+  try{
+    if(searchMode==="videos"){await searchPexelsVideos(key,false);}
+    else{if(key) await searchPexelsPhotos(key,false); else await searchWikimedia(false);}
+  }catch(e){console.error(e);}finally{loading.classList.add("hidden");}
+};
+btnClear.onclick=()=>{results.innerHTML="";btnMore.classList.add("hidden");keywords.value="";selectedItems=[];updateBulkBar();};
 
-btnClear.addEventListener("click", ()=>{
-  results.innerHTML = "";
-  btnMore.classList.add("hidden");
-  keywords.value = "";
-});
-
-/* =======================
-   Title Generator
-======================= */
-const output = document.getElementById("output");
-const btnGenerate = document.getElementById("btnGenerate");
-const textOutput = document.getElementById("textOutput");
-const btnCopyText = document.getElementById("btnCopyText");
-
-btnGenerate.addEventListener("click", ()=>{
+/* ========= Titles ========= */
+const output=document.getElementById("output"),btnGenerate=document.getElementById("btnGenerate"),textOutput=document.getElementById("textOutput"),btnCopyText=document.getElementById("btnCopyText");
+btnGenerate.onclick=()=>{
   output.classList.remove("hidden");
-  const q = [country.value, city.value, theme.value, keywords.value.trim()]
-    .filter(x=>x && x !== "Any").join(" ");
+  const q=[country.value,city.value,theme.value,keywords.value.trim()].filter(x=>x&&x!=="Any").join(" ");
   function makeText(mode){
-    if(mode==='cinematic')return `🎬 *Cinematic Title*\nEN: Journey Through ${q}\nZH: ${q} 的電影感畫面\n\nDescription:\nEN: A cinematic travel montage showcasing ${q} — natural light, soft motion, emotional storytelling.\nZH: 一段以 ${q} 為主題的電影感旅行剪輯，柔光慢景，情緒敘事。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #cinematic #travel #shortfilm`;
-    if(mode==='seo')return `🧭 *SEO Title*\nEN: Discover ${q} in 4K – Travel Highlights\nZH: 探索 ${q} 的旅遊亮點 4K 影片\n\nDescription:\nEN: Explore the best of ${q}, including landmarks, food, and local culture.\nZH: 精選 ${q} 的景點、美食與人文，給旅人的快速導覽。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #travelguide #explore #4k`;
-    if(mode==='clickbait')return `😂 *Clickbait Title*\nEN: You Won’t Believe What Happened in ${q}!\nZH: ${q} 發生的事你絕對想不到！\n\nDescription:\nEN: Funny, surprising, and heartwarming clips filmed around ${q}.\nZH: 集合 ${q} 的驚喜與趣味片段，超適合 Shorts。\n\nHashtags:\n#${q.replace(/\\s+/g,'#')} #funny #shorts #viral`;
+    if(mode==='cinematic')return `🎬 *Cinematic Title*\nEN: Journey Through ${q}\nZH: ${q} 的電影感畫面\n\nDescription:\nEN: A cinematic travel montage showcasing ${q} — natural light, soft motion, emotional storytelling.\nZH: 一段以 ${q} 為主題的電影感旅行剪輯，柔光慢景，情緒敘事。\n\nHashtags:\n#${q.replace(/\s+/g,'#')} #cinematic #travel #shortfilm`;
+    if(mode==='seo')return `🧭 *SEO Title*\nEN: Discover ${q} in 4K – Travel Highlights\nZH: 探索 ${q} 的旅遊亮點 4K 影片\n\nDescription:\nEN: Explore the best of ${q}, including landmarks, food, and local culture.\nZH: 精選 ${q} 的景點、美食與人文，給旅人的快速導覽。\n\nHashtags:\n#${q.replace(/\s+/g,'#')} #travelguide #explore #4k`;
+    if(mode==='clickbait')return `😂 *Clickbait Title*\nEN: You Won’t Believe What Happened in ${q}!\nZH: ${q} 發生的事你絕對想不到！\n\nDescription:\nEN: Funny, surprising, and heartwarming clips filmed around ${q}.\nZH: 集合 ${q} 的驚喜與趣味片段，超適合 Shorts。\n\nHashtags:\n#${q.replace(/\s+/g,'#')} #funny #shorts #viral`;
   }
-  textOutput.textContent = makeText('cinematic');
-  output.querySelectorAll('button[data-mode]').forEach(b=>{
-    b.addEventListener('click', ()=> textOutput.textContent = makeText(b.dataset.mode));
-  });
-});
-btnCopyText.addEventListener("click", ()=> copyText(textOutput.textContent));
-
-/* =======================
-   Settings (API Key)
-======================= */
-const modal = document.getElementById("settingsModal");
-const btnSettings = document.getElementById("btnSettings");
-const btnClose = document.getElementById("btnCloseSettings");
-const btnSave = document.getElementById("btnSaveKey");
-const pexelsKeyInput = document.getElementById("pexelsKey");
-
-btnSettings.onclick = ()=>{
-  pexelsKeyInput.value = localStorage.getItem("pexelsKey") || "";
-  modal.classList.remove("hidden");
+  textOutput.textContent=makeText('cinematic');
+  output.querySelectorAll('button[data-mode]').forEach(b=>b.addEventListener('click',()=>{textOutput.textContent=makeText(b.dataset.mode);}));
 };
-btnClose.onclick = ()=> modal.classList.add("hidden");
-btnSave.onclick = ()=>{
-  localStorage.setItem("pexelsKey", (pexelsKeyInput.value||"").trim());
-  alert("✅ 已儲存 API Key");
-  modal.classList.add("hidden");
-};
+btnCopyText.onclick=()=>{navigator.clipboard.writeText(textOutput.textContent).then(()=>showToast()).catch(()=>alert(textOutput.textContent));};
 
-/* =======================
-   Service Worker
-======================= */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("sw.js")
-    .then(()=>console.log("SW ok"))
-    .catch(e=>console.error("SW fail", e));
-}
+/* ========= Settings ========= */
+const modal=document.getElementById("settingsModal"),btnSettings=document.getElementById("btnSettings"),btnClose=document.getElementById("btnCloseSettings"),btnSave=document.getElementById("btnSaveKey"),pexelsKeyInput=document.getElementById("pexelsKey");
+btnSettings.onclick=()=>{pexelsKeyInput.value=localStorage.getItem("pexelsKey")||"";modal.classList.remove("hidden");};
+btnClose.onclick=()=>modal.classList.add("hidden");
+btnSave.onclick=()=>{localStorage.setItem("pexelsKey",(pexelsKeyInput.value||"").trim());alert("✅ 已儲存 API Key");modal.classList.add("hidden");};
+
+/* ========= Bulk ZIP ========= */
+function inferExt(url,type){const u=url.split('?')[0].toLowerCase();if(type==='video')return'.mp4';if(u.endsWith('.png'))return'.png';if(u.endsWith('.webp'))return'.webp';if(u.endsWith('.gif'))return'.gif';return'.jpg';}
+function stamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;}
+btnDownload.onclick=async()=>{
+  if(!selectedItems.length){showToast('尚未選取項目');return;}
+  btnDownload.disabled=true;btnDownload.textContent='打包中...';
+  try{
+    const zip=new JSZip();let i=1;
+    for(const it of selectedItems){
+      const res=await fetch(it.url,{mode:'cors'});const blob=await res.blob();
+      zip.file(`${it.type}_${String(i).padStart(3,'0')}${inferExt(it.url,it.type)}`,blob);i++;
+    }
+    const out=await zip.generateAsync({type:'blob'});saveAs(out,`AIsearch_${stamp()}.zip`);showToast('✅ ZIP 已開始下載');
+  }catch(e){console.error(e);alert('下載失敗，請稍後再試');}
+  finally{btnDownload.disabled=false;btnDownload.textContent='📦 下載已選取';}
+};
+</script>
+
+<script>
+/* ========= SW ========= */
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").then(()=>console.log("SW ok")).catch(e=>console.error("SW fail",e));}
 </script>
 </body>
 </html>
-  
